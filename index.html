@@ -62,7 +62,7 @@
   .kbar{height:18px; background:#0a0e14; border:1px solid var(--line); border-radius:9px; overflow:hidden; position:relative;}
   .kbar>span{position:absolute; left:0; top:0; height:100%; width:0; transition:width .4s;}
   #proj-bar-proj{background:#f0883e; z-index:1;}                                      /* 予測進捗(オレンジ・単色) */
-  #proj-bar,#q-bar,#comp-bar{background:linear-gradient(90deg,#1f6feb,#58a6ff); z-index:2;} /* 現在の進捗(青・前面) */
+  #proj-bar,#comp-bar,#ev-bar{background:linear-gradient(90deg,#1f6feb,#58a6ff); z-index:2;} /* 現在の進捗(青・前面) */
   .kbar .txt{position:absolute; inset:0; text-align:center; font-size:.78rem; line-height:18px; z-index:3; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 3px rgba(0,0,0,.95); font-weight:bold;}
   /* バー凡例(スウォッチで色分け、文字は地色のまま読みやすく) */
   .barlegend{font-size:.74rem; color:var(--sub); margin-top:4px;}
@@ -99,6 +99,8 @@
   .chronicle .c-item{padding:3px 0 3px 10px; border-left:2px solid var(--line); margin-left:4px;}
   .chronicle .c-age{color:var(--accent); font-weight:bold; margin-right:6px;}
   .best{background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:.8rem; margin-top:8px;}
+  .len-btn{display:inline-block; width:auto; margin:0 3px; padding:5px 12px; font-size:.85rem; background:var(--panel2); border:1px solid var(--line); color:var(--sub); border-radius:8px; cursor:pointer;}
+  .len-btn.on{background:var(--accent); color:#fff; border-color:var(--accent);}
   /* 完了時の紙吹雪/クラッカー演出 */
   #confetti{position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:9999;}
   .confetti-piece{position:absolute; top:-12px; width:9px; height:14px; opacity:.95; will-change:transform;}
@@ -121,7 +123,10 @@
       心がすり減れば<b style="color:var(--men)">メンタル</b>が折れる。
       プロジェクトに失敗し<b style="color:var(--cash)">会社のキャッシュ</b>が尽きれば<b>倒産</b>。<br>
       恋人や家族との時間も、働きすぎれば失われていく。</p>
-      <p><b>40歳</b>まで生き延びれば引退。そのときの<b style="color:var(--money)">貯金額</b>で人生の結末が決まる。</p>
+      <p><b id="goal-age-text">35歳</b>まで生き延びれば引退。そのときの<b style="color:var(--money)">貯金額</b>で人生の結末が決まる。</p>
+      <div style="text-align:center; margin:10px 0; font-size:.9rem;">
+        プレイの長さ：<span id="len-select"></span>
+      </div>
       <details>
         <summary>ルール詳細を見る</summary>
         <table class="help">
@@ -207,14 +212,6 @@
       <div class="care" id="invest-buttons"></div>
     </div>
 
-    <!-- QUARTER RESULT (animated) -->
-    <div id="phase-quarter" class="panel hidden">
-      <h2>📊 <span id="q-title"></span></h2>
-      <div class="kbar" style="height:22px; margin-bottom:10px;"><span id="q-bar"></span><div class="txt" id="q-bar-txt" style="line-height:22px;"></div></div>
-      <div id="q-deltas"></div>
-      <button onclick="proceedToEvent()">続ける ▶</button>
-    </div>
-
     <!-- PROJECT COMPLETE -->
     <div id="phase-complete" class="panel hidden">
       <h2 id="comp-head"></h2>
@@ -239,19 +236,22 @@
       <div id="opt-B" class="opt-card" onclick="chooseProject(1)"></div>
     </div>
 
-    <!-- EVENT -->
+    <!-- TURN: 四半期結果(任意)＋イベント＋結果 を1画面に統合 -->
     <div id="phase-event" class="panel hidden">
+      <div id="ev-quarter" class="hidden">
+        <h2>📊 第<span id="ev-q-num"></span>四半期の結果</h2>
+        <div class="kbar" style="height:22px; margin-bottom:8px;"><span id="ev-bar"></span><div class="txt" id="ev-bar-txt" style="line-height:22px;"></div></div>
+        <div id="ev-deltas" style="margin-bottom:10px;"></div>
+        <hr style="border:none;border-top:1px solid var(--line);margin:10px 0;">
+      </div>
       <h2>✨ <span id="ev-title"></span></h2>
       <p id="ev-text"></p>
       <div class="choices" id="ev-choices"></div>
-    </div>
-
-    <!-- EVENT RESULT -->
-    <div id="phase-evresult" class="panel hidden">
-      <h2>📣 結果</h2>
-      <p id="evr-log"></p>
-      <div id="evr-effects"></div>
-      <button onclick="afterQuarter()">続ける ▶</button>
+      <div id="ev-result" class="hidden">
+        <p id="evr-log"></p>
+        <div id="evr-effects"></div>
+        <button onclick="afterQuarter()">▶ 次の四半期へ</button>
+      </div>
     </div>
 
     <div class="panel log" id="log"></div>
@@ -1456,6 +1456,21 @@ const RIVAL_NAMES = ['橘','黒木','財前','藤堂','一ノ瀬','神崎'];
 const MENTOR_NAMES = ['室田さん','鬼塚さん','南部さん','和泉さん','榊さん'];
 function pickName(){ return PARTNER_NAMES[(S.quarter + S.children) % PARTNER_NAMES.length]; }
 
+let selectedEndAge = 35;
+function renderLenSelect(){
+  const box = document.getElementById('len-select');
+  if(!box) return;
+  const opts = [{a:30,l:'短編'},{a:35,l:'標準'},{a:40,l:'長編'}];
+  box.innerHTML = '';
+  opts.forEach(function(o){
+    const b = document.createElement('span');
+    b.className = 'len-btn' + (selectedEndAge===o.a ? ' on' : '');
+    b.textContent = o.l + '('+o.a+'歳)';
+    b.onclick = function(){ selectedEndAge = o.a; document.getElementById('goal-age-text').textContent = o.a+'歳'; renderLenSelect(); };
+    box.appendChild(b);
+  });
+}
+
 function goIntro(){
   document.getElementById('screen-title').classList.add('hidden');
   const intro = document.getElementById('screen-intro');
@@ -1473,6 +1488,7 @@ function goIntro(){
 }
 
 function startGame(greetIdx){
+  CONFIG.endAge = selectedEndAge;   // 選んだ長さを反映
   S = newState();
   const g = GREETINGS[greetIdx];
   const m = g.mod;
@@ -1719,10 +1735,9 @@ function work(){
 
   S.pendingEvent = pickEvent();
 
-  // プロジェクト完了/失敗なら完了画面に進捗・体力メンタル増減をまとめて表示。
-  // 継続中なら四半期結果アニメを表示してからイベントへ。
+  // 完了/失敗→完了画面。継続中→四半期結果とイベントを1画面に統合表示。
   if(S.projectEnded){ showComplete(); }
-  else { showQuarterResult(); }
+  else { showEvent(true); }
   render();
 }
 
@@ -1752,21 +1767,6 @@ function quarterDeltaHTML(q){
   h += '<p class="res-line pos">収入 +'+man(q.income)+(q.bonus>0?'（業績ボーナス '+man(q.bonus)+'含む）':'')+'</p>';
   if(q.expense > 0) h += '<p class="res-line neg">家族の出費 -'+man(q.expense)+'</p>';
   return h;
-}
-
-// 継続中の四半期: 結果アニメ
-function showQuarterResult(){
-  const r = S.quarterResult;
-  showPhase('phase-quarter');
-  document.getElementById('q-title').textContent = '第'+S.quarter+'四半期の結果';
-  animateBar('q-bar','q-bar-txt', r.pctBefore, r.pctAfter);
-  document.getElementById('q-deltas').innerHTML = quarterDeltaHTML(r);
-  render();   // 上部の体力・メンタルゲージもアニメで更新
-}
-function proceedToEvent(){
-  if(S.over) return;
-  showEvent();
-  render();
 }
 
 // 完了時の紙吹雪/クラッカー演出(視覚効果のみ)
@@ -1904,19 +1904,32 @@ function breakupEvent(){
   };
 }
 
-function showEvent(){
+// withQuarter=true なら上部に四半期結果(進捗バー＋体力メンタル増減)も表示
+function showEvent(withQuarter){
   const ev = S.pendingEvent;
   showPhase('phase-event');
+  const qblock = document.getElementById('ev-quarter');
+  if(withQuarter && S.quarterResult){
+    qblock.classList.remove('hidden');
+    document.getElementById('ev-q-num').textContent = S.quarter;
+    animateBar('ev-bar','ev-bar-txt', S.quarterResult.pctBefore, S.quarterResult.pctAfter);
+    document.getElementById('ev-deltas').innerHTML = quarterDeltaHTML(S.quarterResult);
+  } else {
+    qblock.classList.add('hidden');
+  }
+  document.getElementById('ev-result').classList.add('hidden');
+  const choices = document.getElementById('ev-choices');
+  choices.classList.remove('hidden');
   document.getElementById('ev-title').textContent = ev.title;
   document.getElementById('ev-text').textContent = ev.text;
-  const box = document.getElementById('ev-choices');
-  box.innerHTML = '';
+  choices.innerHTML = '';
   ev.choices.forEach((c, i)=>{
     const b = document.createElement('button');
     b.textContent = c.label;
     b.onclick = ()=> chooseEvent(i);
-    box.appendChild(b);
+    choices.appendChild(b);
   });
+  render();
 }
 
 function chooseEvent(i){
@@ -1959,8 +1972,10 @@ function chooseEvent(i){
   render();
 }
 
+// 同じイベント画面内に結果をインライン表示(選択肢を結果に差し替え)
 function showResult(ev, c, eff, before, granted){
-  showPhase('phase-evresult');
+  document.getElementById('ev-choices').classList.add('hidden');
+  document.getElementById('ev-result').classList.remove('hidden');
   document.getElementById('evr-log').textContent = c.log;
   const lines = [];
   const qual = (d, name)=>{
@@ -2000,7 +2015,7 @@ function afterQuarter(){
 
 /* ===================== SCREENS ===================== */
 function hideAllPhases(){
-  ['phase-play','phase-quarter','phase-complete','phase-skill','phase-select','phase-event','phase-evresult']
+  ['phase-play','phase-complete','phase-skill','phase-select','phase-event']
     .forEach(id=>document.getElementById(id).classList.add('hidden'));
 }
 function showPhase(id){ hideAllPhases(); document.getElementById(id).classList.remove('hidden'); }
@@ -2063,7 +2078,7 @@ function chooseProject(i){
   S.project = S.options[i];
   S.options = null;
   log('「'+S.project.name+'」に着手した。'+S.project.brief, 'ev');
-  showEvent();
+  showEvent(false);   // 完了画面で四半期結果は表示済みなのでイベントのみ
   render();
 }
 
@@ -2071,23 +2086,25 @@ function chooseProject(i){
 function endingByMoney(){
   if(S.investments){ S.money += S.investments; S.investments = 0; }  // 投資を清算
   const m = S.money;
+  const age = Math.floor(S.age) + '歳。';
   const pre = S.president ? 'オーナー社長として、' : '';
   const survived = S.phoenixUsed ? '一度は過労死の淵から蘇り、' : '';
-  if(m >= CONFIG.endRich){
+  const scale = (CONFIG.endAge - CONFIG.startAge) / 18;   // 短い設定ほど閾値も比例して下げる
+  if(m >= CONFIG.endRich * scale){
     gameOver('南の島で悠々自適','🏝️👑',
-      '40歳。'+survived+pre+'莫大な貯金を手に、あなたは南の島に豪邸を建てた。'
+      age+survived+pre+'莫大な貯金を手に、あなたは南の島に豪邸を建てた。'
       +'もう二度と働く必要はない。プールサイドで、これまでの激闘を懐かしく思い返す。最高の人生だった。');
-  } else if(m >= CONFIG.endWealthy){
+  } else if(m >= CONFIG.endWealthy * scale){
     gameOver('南の島でのんびり暮らす','🏝️',
-      '40歳。'+survived+pre+'十分な蓄えを得て、あなたは会社を辞め南の島へ。'
+      age+survived+pre+'十分な蓄えを得て、あなたは会社を辞め南の島へ。'
       +'波の音を聞きながら、のんびりと第二の人生を楽しむ。よく頑張った。お疲れさまでした。');
-  } else if(m >= CONFIG.endNormal){
+  } else if(m >= CONFIG.endNormal * scale){
     gameOver('地方都市で慎ましく','🏡',
-      '40歳。'+survived+pre+'大金持ちにはなれなかったが、あなたは物価の安い地方都市へ移り住んだ。'
+      age+survived+pre+'大金持ちにはなれなかったが、あなたは物価の安い地方都市へ移り住んだ。'
       +'家庭菜園でもしながら、慎ましくも穏やかな暮らしを始めた。これはこれで、悪くない。');
   } else {
     gameOver('まだまだ働く','🧑‍💻',
-      '40歳。'+survived+pre+'貯金は心もとなく、南の島の夢は遠い。'
+      age+survived+pre+'貯金は心もとなく、南の島の夢は遠い。'
       +'生活のため、あなたはこれからも働き続ける。デスマーチの日々は、まだ終わらない…。');
   }
 }
@@ -2300,6 +2317,7 @@ function showLastResult(){
       el.classList.remove('hidden');
     }
   }catch(e){}
+  renderLenSelect();
 })();
 </script>
 </body>
