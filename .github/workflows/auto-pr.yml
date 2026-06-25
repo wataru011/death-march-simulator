@@ -1,0 +1,68 @@
+name: Auto PR
+
+# 改修ブランチ(claude/**)が push されたら、main への PR を自動作成/更新する。
+# 既に PR が開いていれば push により自動更新されるため何もしない。
+# Actions の GITHUB_TOKEN はサーバー側で有効なため、シェルからは作れない PR をここで作る。
+
+on:
+  push:
+    branches:
+      - 'claude/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  open-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create PR to main if needed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const base = 'main';
+            const head = context.ref.replace('refs/heads/', '');
+            if (head === base) return;
+            const { owner, repo } = context.repo;
+
+            // 既に open な PR があれば何もしない（push で自動更新される）
+            const existing = await github.rest.pulls.list({
+              owner, repo, state: 'open', head: `${owner}:${head}`,
+            });
+            if (existing.data.length > 0) {
+              core.info(`PR already open: #${existing.data[0].number}`);
+              return;
+            }
+
+            // main に対して差分(先行コミット)があるか確認
+            const cmp = await github.rest.repos.compareCommits({ owner, repo, base, head });
+            if (cmp.data.ahead_by === 0) {
+              core.info('No commits ahead of main; skip PR creation.');
+              return;
+            }
+
+            try {
+              const pr = await github.rest.pulls.create({
+                owner, repo, base, head,
+                title: `改修: ${head}`,
+                body: [
+                  'Claude Code により自動作成された PR です。改修内容を `main` に取り込みます。',
+                  '',
+                  '- push のたびに自動更新されます',
+                  '- マージすると `main` の GitHub Pages が更新されます',
+                  '',
+                  '🤖 Generated with [Claude Code](https://claude.com/claude-code)',
+                ].join('\n'),
+              });
+              core.info(`Created PR #${pr.data.number}: ${pr.data.html_url}`);
+            } catch (e) {
+              if (e.status === 403) {
+                // リポジトリ設定「Allow GitHub Actions to create and approve pull requests」が未許可。
+                // 赤バツにはせず、有効化を促す警告だけ出して正常終了する。
+                core.warning('Actions による PR 自動作成が未許可です。Settings → Actions → General → Workflow permissions で ' +
+                  '「Allow GitHub Actions to create and approve pull requests」を ON にしてください。');
+                return;
+              }
+              throw e;
+            }
