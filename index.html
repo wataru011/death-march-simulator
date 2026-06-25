@@ -32,8 +32,9 @@
   .seg.sta i.on{background:var(--sta); border-color:var(--sta);}
   .seg.men i.on{background:var(--men); border-color:var(--men);}
   .seg.lowfill i.on{background:var(--danger); border-color:var(--danger);}
-  .statline{font-size:1rem; margin-top:8px;}
-  .statline b{font-size:1.2rem;}
+  .statbar{display:flex; gap:14px; flex-wrap:wrap; align-items:baseline; margin-top:10px; font-size:.82rem; color:var(--sub);}
+  .statbar b{font-size:1rem; margin-left:2px;}
+  .v-wp{color:var(--wp);} .v-money{color:var(--money);}
   .wp b{color:var(--wp);} .money b{color:var(--money);} .cash b{color:var(--cash);}
   .ctrl{margin:10px 0;}
   .ctrl label{display:flex; justify-content:space-between; font-size:.9rem; margin-bottom:4px;}
@@ -61,8 +62,12 @@
   .kbar{height:18px; background:#0a0e14; border:1px solid var(--line); border-radius:9px; overflow:hidden; position:relative;}
   .kbar>span{position:absolute; left:0; top:0; height:100%; width:0; transition:width .4s;}
   #proj-bar-proj{background:#f0883e; z-index:1;}                                      /* 予測進捗(オレンジ・単色) */
-  #proj-bar,#q-bar{background:linear-gradient(90deg,#1f6feb,#58a6ff); z-index:2;}     /* 現在の進捗(青・前面) */
-  .kbar .txt{position:absolute; inset:0; text-align:center; font-size:.78rem; line-height:18px; z-index:3;}
+  #proj-bar,#q-bar,#comp-bar{background:linear-gradient(90deg,#1f6feb,#58a6ff); z-index:2;} /* 現在の進捗(青・前面) */
+  .kbar .txt{position:absolute; inset:0; text-align:center; font-size:.78rem; line-height:18px; z-index:3; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 3px rgba(0,0,0,.95); font-weight:bold;}
+  /* バー凡例(スウォッチで色分け、文字は地色のまま読みやすく) */
+  .barlegend{font-size:.74rem; color:var(--sub); margin-top:4px;}
+  .barlegend i{display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:middle; margin:0 3px 2px 0;}
+  .sw-cur{background:#58a6ff;} .sw-proj{background:#f0883e;}
   .proj-c{color:#58a6ff;} .proj-p{color:#f0883e;}
   .tag{display:inline-block; font-size:.72rem; padding:1px 8px; border-radius:10px; background:var(--panel2); border:1px solid var(--line); margin-right:5px;}
   .tag.sta{color:var(--sta); border-color:var(--sta);}
@@ -87,6 +92,12 @@
   table.help td{padding:2px 6px; border-bottom:1px solid var(--line); vertical-align:top;}
   details{margin-top:8px;} summary{cursor:pointer; color:var(--accent); font-size:.9rem;}
   .abilities{font-size:.8rem; margin-top:6px;}
+  /* 完了時の紙吹雪/クラッカー演出 */
+  #confetti{position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:9999;}
+  .confetti-piece{position:absolute; top:-12px; width:9px; height:14px; opacity:.95; will-change:transform;}
+  @keyframes confetti-fall{ 0%{transform:translateY(-10vh) rotate(0deg);} 100%{transform:translateY(110vh) rotate(720deg);} }
+  .popper{position:fixed; left:50%; top:38%; font-size:3.4rem; z-index:10000; pointer-events:none; animation:popper 1s ease-out forwards;}
+  @keyframes popper{ 0%{transform:translate(-50%,-50%) scale(.2); opacity:0;} 35%{transform:translate(-50%,-50%) scale(1.3); opacity:1;} 100%{transform:translate(-50%,-50%) scale(1); opacity:0;} }
 </style>
 </head>
 <body>
@@ -104,15 +115,14 @@
       プロジェクトに失敗し<b style="color:var(--cash)">会社のキャッシュ</b>が尽きれば<b>倒産</b>。<br>
       恋人や家族との時間も、働きすぎれば失われていく。</p>
       <p><b>40歳</b>まで生き延びれば引退。そのときの<b style="color:var(--money)">貯金額</b>で人生の結末が決まる。</p>
-      <p class="sub">運（ランダム）は存在しない。すべてはあなたの選択で決まる。人生ってそういうものだからね。</p>
       <details>
         <summary>ルール詳細を見る</summary>
         <table class="help">
           <tr><td>工数</td><td>(20日＋休日勤務)×3ヶ月×労働時間×仕事力。期限内に必要工数を満たせば成功。100%超過分は他チームのヘルプに回り収入になる。</td></tr>
           <tr><td>仕事力</td><td>難しいプロジェクトを完遂するほど大きく上がる。</td></tr>
-          <tr><td>体力 / メンタル</td><td>長く働くほど減り、休むほど回復。<b>減り具合は感覚（3段階）でしか分からない</b>。お金を使えば回復できる。</td></tr>
+          <tr><td>体力 / メンタル</td><td>長く働くほど減り、休むほど回復。<b>減り具合は感覚（5段階）でしか分からない</b>。お金を使えば回復できる。</td></tr>
           <tr><td>お金</td><td>働いた量×報酬率で増える。回復や自己投資に使える。残せば結末が良くなる。</td></tr>
-          <tr><td>会社キャッシュ</td><td>プロジェクト成功で増え、失敗で減る。<b>受注額が大きい案件ほど失敗時の損失も大きい</b>。0になると倒産。</td></tr>
+          <tr><td>会社キャッシュ</td><td>プロジェクト成功で増え、失敗で減る。<b>多いほど毎期の業績連動ボーナスが増え、自分の貯金も増える</b>。受注額が大きい案件ほど失敗時の損失も大きく、0になると倒産。</td></tr>
           <tr><td>イベント</td><td>毎四半期発生・4択。効果は選択後に判明。過去の選択でその後が分岐。特定の道で<b>レアな才能</b>に目覚めることも。</td></tr>
           <tr><td>恋愛</td><td>働きすぎると関係が悪化。選択次第で別れは回避できるが、相手の我慢にも限界がある。</td></tr>
         </table>
@@ -148,10 +158,10 @@
           <div class="seg men" id="men-seg"><i></i><i></i><i></i><i></i><i></i></div>
         </div>
       </div>
-      <div class="row" style="margin-top:10px;">
-        <div class="statline wp">仕事力 <b id="wp"></b></div>
-        <div class="statline money">貯金 <b id="money"></b></div>
-        <div class="statline cash">会社 <b id="cash"></b></div>
+      <div class="statbar">
+        <span>仕事力 <b id="wp" class="v-wp"></b></span>
+        <span>貯金 <b id="money" class="v-money"></b></span>
+        <span>会社 <b id="cash" class="v-cash"></b></span>
       </div>
       <div id="abilities" class="abilities"></div>
       <div id="rel-warn" class="warn hidden"></div>
@@ -164,6 +174,7 @@
       <div class="sub" id="proj-desc"></div>
       <div style="margin:8px 0;"><span id="proj-tags"></span></div>
       <div class="kbar"><span id="proj-bar-proj"></span><span id="proj-bar"></span><div class="txt" id="proj-ktxt"></div></div>
+      <div class="barlegend"><i class="sw-cur"></i>現在の進捗　<i class="sw-proj"></i>予測進捗（労働時間ぶん）</div>
       <div class="sub" id="proj-deadline" style="margin-top:4px;"></div>
 
       <div class="ctrl" style="margin-top:16px;">
@@ -176,10 +187,10 @@
       </div>
       <div class="preview" id="preview"></div>
 
-      <div class="sub" style="margin-top:12px;">💴 お金で自己投資</div>
-      <div class="care" id="care"></div>
-
       <button onclick="work()">この四半期を働く ▶</button>
+
+      <div class="sub" style="margin-top:14px;">💴 お金で自己投資</div>
+      <div class="care" id="care"></div>
     </div>
 
     <!-- QUARTER RESULT (animated) -->
@@ -187,12 +198,14 @@
       <h2>📊 <span id="q-title"></span></h2>
       <div class="kbar" style="height:22px; margin-bottom:10px;"><span id="q-bar"></span><div class="txt" id="q-bar-txt" style="line-height:22px;"></div></div>
       <div id="q-deltas"></div>
-      <button onclick="continueQuarter()">続ける ▶</button>
+      <button onclick="proceedToEvent()">続ける ▶</button>
     </div>
 
     <!-- PROJECT COMPLETE -->
     <div id="phase-complete" class="panel hidden">
       <h2 id="comp-head"></h2>
+      <div class="kbar" style="height:22px; margin-bottom:8px;"><span id="comp-bar"></span><div class="txt" id="comp-bar-txt" style="line-height:22px;"></div></div>
+      <div id="comp-deltas"></div>
       <div id="comp-body"></div>
       <button onclick="goToSelect()" id="comp-btn">次のプロジェクトを選ぶ ▶</button>
     </div>
@@ -200,7 +213,6 @@
     <!-- PROJECT SELECT -->
     <div id="phase-select" class="panel hidden">
       <h2>📝 次に受けるプロジェクトを選ぶ</h2>
-      <p class="sub">2つの案件が提示された。今の体力・メンタル・会社の懐と相談して選ぼう。</p>
       <div id="opt-A" class="opt-card" onclick="chooseProject(0)"></div>
       <div id="opt-B" class="opt-card" onclick="chooseProject(1)"></div>
     </div>
@@ -234,7 +246,8 @@
     </div>
   </div>
 
-  <p class="center sub" style="margin-top:24px;">© デスマーチ・シミュレーター — 完全決定論的・運要素ゼロ</p>
+  <p class="center sub" style="margin-top:24px;">© デスマーチ・シミュレーター</p>
+  <div id="confetti"></div>
 </div>
 
 <script>
@@ -248,6 +261,7 @@ const CONFIG = {
   marriedBonus: 4, gfBonus: 2, childBonus: 2,
   successMental: 5, failMental: 8,
   moneyRate: 300,
+  profitShareRate: 0.005,   // 毎期、会社キャッシュのこの割合が業績連動ボーナスとして貯金に入る
   // 毎四半期の生活/家族の出費。独身は出費が無い代わりにメンタル回復が遅い(下記係数)
   expense: { girlfriend: 150000, married: 300000, perChild: 150000 },
   singleMenRecovery: 0.8,
@@ -333,9 +347,11 @@ function makeOption(index, variant){
   else            { pay = 1.45 + (index%2)*0.20; reqMult = 1.30; wpBonus = 1; kind='高難度・高報酬'; }
   const required = Math.round(expectedWp * length * 60 * hTarget * reqMult);
   const contract = Math.round(CONFIG.contractBase * length * pay * (1 + index * CONFIG.contractGrowth));
+  // 規模(人日): 標準スキル(expectedWp)で8時間労働した場合に何人日かかるか
+  const manDays = Math.max(1, Math.round(required / (8 * expectedWp)));
   return {
     index, variant, kind, name: projName(index*2 + variant),
-    length, required, reqMult, contract,
+    length, required, reqMult, contract, manDays,
     staminaWeight: prof.s, mentalWeight: prof.m, type: prof.type,
     pay, wpBonus, difficulty: diffStars(index, reqMult),
     brief: projBrief(index, variant, prof),
@@ -1447,12 +1463,13 @@ function quarterPreview(hours, weekendDays){
   else menRecMult = CONFIG.singleMenRecovery;   // 独身はメンタル回復が遅い
   menSupport += S.children * CONFIG.childBonus;
   let pay = proj.pay * (S.president ? 1.3 : 1.0);
-  const money = Math.round(manHours * pay * (0.6 + wp * 0.02) * CONFIG.moneyRate);
+  const wage = Math.round(manHours * pay * (0.6 + wp * 0.02) * CONFIG.moneyRate);
+  const bonus = Math.round(S.companyCash * CONFIG.profitShareRate);   // 業績連動ボーナス
   return {
     kousu: Math.round(kousu),
     staDelta: Math.round(recovery - staDrain),
     menDelta: Math.round(recovery * menRecMult - menDrain + menSupport),
-    money, boredom,
+    wage, bonus, money: wage + bonus, boredom,
   };
 }
 
@@ -1469,12 +1486,13 @@ function updatePreview(){
   // グラフ: 現在の進捗(青)に予想進捗(オレンジ)を重ねて表示
   document.getElementById('proj-bar').style.width = curPct + '%';
   document.getElementById('proj-bar-proj').style.width = (willFinish ? 100 : projPct) + '%';
-  document.getElementById('proj-ktxt').innerHTML =
-    '進捗 <span class="proj-c">約' + curPct + '%</span> → 予想 <span class="proj-p">約' + projPct + '%</span>'
-    + (willFinish ? '<span class="proj-p">（完遂見込み）</span>' : '');
+  document.getElementById('proj-ktxt').textContent =
+    '進捗 約' + curPct + '% → 予測 約' + projPct + '%' + (willFinish ? '（完遂見込み）' : '');
   // チップ: 収入・出費・納期警告(予想進捗はグラフ側に表示)
   let html = '';
-  html += '<span class="chip">見込み収入：約' + man(p.money) + '</span>';
+  let incomeText = '見込み収入：約' + man(p.money);
+  if(p.bonus > 0) incomeText += '（内 業績ボーナス ' + man(p.bonus) + '）';
+  html += '<span class="chip">' + incomeText + '</span>';
   const exp = quarterlyExpense();
   if(exp > 0) html += '<span class="chip" style="border-color:var(--danger);color:var(--danger)">毎期の出費：約' + man(exp) + '</span>';
   const lastChance = (proj.quartersElapsed + 1) >= proj.length;
@@ -1519,7 +1537,6 @@ function work(){
   const p = quarterPreview(hours, wknd);
   const proj = S.project;
 
-  // 変化前の値を控える(アニメ表示用)
   const beforeAcc = proj.accumulated;
   const beforeSta = S.sta, beforeMen = S.men;
 
@@ -1537,56 +1554,16 @@ function work(){
   S.years = Math.floor(S.quarter / 4);
 
   log('第'+S.quarter+'四半期：'+hours+'時間/日・休日'+wknd+'日勤務（収入 '+man(p.money)
+      + (p.bonus>0 ? '／業績ボーナス含む' : '')
       + (expense>0 ? '／家族の出費 '+man(expense) : '') + '）');
 
-  // 結果アニメ表示用に控える
   S.quarterResult = {
     pctBefore: progressDisplay(beforeAcc, proj.required),
     pctAfter:  progressDisplay(proj.accumulated, proj.required),
     staDelta: S.sta - beforeSta,
     menDelta: S.men - beforeMen,
-    income: p.money, expense: expense,
+    income: p.money, bonus: p.bonus, expense: expense,
   };
-  showQuarterResult();
-}
-
-// 四半期の結果をアニメーション表示
-function showQuarterResult(){
-  const r = S.quarterResult;
-  showPhase('phase-quarter');
-  document.getElementById('q-title').textContent = '第'+S.quarter+'四半期の結果';
-  const bar = document.getElementById('q-bar');
-  const txt = document.getElementById('q-bar-txt');
-  bar.style.transition = 'none';
-  bar.style.width = r.pctBefore + '%';
-  txt.innerHTML = '進捗 約'+r.pctBefore+'%';
-  void bar.offsetWidth;  // reflow
-  setTimeout(function(){
-    bar.style.transition = 'width .9s ease';
-    bar.style.width = r.pctAfter + '%';
-    const gain = r.pctAfter - r.pctBefore;
-    txt.innerHTML = '進捗 <span class="proj-c">約'+r.pctBefore+'% → 約'+r.pctAfter+'%</span>'
-      + (gain>0 ? ' <span class="proj-p">(+'+gain+'%)</span>' : '');
-  }, 60);
-  const arrow = function(d, name){
-    const a = Math.abs(d);
-    if(d > 0) return '<p class="res-line pos">'+name+' ▲ '+(a>=20?'大きく回復':a>=8?'回復':'少し回復')+'</p>';
-    if(d < 0) return '<p class="res-line neg">'+name+' ▼ '+(a>=20?'大きく減少':a>=8?'減少':'少し減少')+'</p>';
-    return '<p class="res-line">'+name+' 変化なし</p>';
-  };
-  let html = '';
-  html += arrow(r.staDelta, '体力');
-  html += arrow(r.menDelta, 'メンタル');
-  html += '<p class="res-line pos">収入 +'+man(r.income)+'</p>';
-  if(r.expense > 0) html += '<p class="res-line neg">家族の出費 -'+man(r.expense)+'</p>';
-  document.getElementById('q-deltas').innerHTML = html;
-  render();   // 上部の体力・メンタルゲージもアニメで更新
-}
-
-// 結果表示の「続ける」後、過労死/倒産判定・プロジェクト判定・イベントへ
-function continueQuarter(){
-  if(S.over) return;
-  const proj = S.project;
 
   // 過労死判定（不死鳥なら一度だけ復活）
   if(S.sta <= 0){
@@ -1619,9 +1596,75 @@ function continueQuarter(){
 
   S.pendingEvent = pickEvent();
 
+  // プロジェクト完了/失敗なら完了画面に進捗・体力メンタル増減をまとめて表示。
+  // 継続中なら四半期結果アニメを表示してからイベントへ。
   if(S.projectEnded){ showComplete(); }
-  else { showEvent(); }
+  else { showQuarterResult(); }
   render();
+}
+
+// 進捗バーを before→after にアニメーション
+function animateBar(barId, txtId, before, after){
+  const bar = document.getElementById(barId);
+  const txt = document.getElementById(txtId);
+  bar.style.transition = 'none';
+  bar.style.width = before + '%';
+  txt.textContent = '進捗 約' + before + '%';
+  void bar.offsetWidth;
+  setTimeout(function(){
+    bar.style.transition = 'width .9s ease';
+    bar.style.width = after + '%';
+    const g = after - before;
+    txt.textContent = '進捗 約' + before + '% → 約' + after + '%' + (g>0 ? ' (+'+g+'%)' : '');
+  }, 60);
+}
+function deltaArrow(d, name){
+  const a = Math.abs(d);
+  if(d > 0) return '<p class="res-line pos">'+name+' ▲ '+(a>=20?'大きく回復':a>=8?'回復':'少し回復')+'</p>';
+  if(d < 0) return '<p class="res-line neg">'+name+' ▼ '+(a>=20?'大きく減少':a>=8?'減少':'少し減少')+'</p>';
+  return '<p class="res-line">'+name+' 変化なし</p>';
+}
+function quarterDeltaHTML(q){
+  let h = deltaArrow(q.staDelta,'体力') + deltaArrow(q.menDelta,'メンタル');
+  h += '<p class="res-line pos">収入 +'+man(q.income)+(q.bonus>0?'（業績ボーナス '+man(q.bonus)+'含む）':'')+'</p>';
+  if(q.expense > 0) h += '<p class="res-line neg">家族の出費 -'+man(q.expense)+'</p>';
+  return h;
+}
+
+// 継続中の四半期: 結果アニメ
+function showQuarterResult(){
+  const r = S.quarterResult;
+  showPhase('phase-quarter');
+  document.getElementById('q-title').textContent = '第'+S.quarter+'四半期の結果';
+  animateBar('q-bar','q-bar-txt', r.pctBefore, r.pctAfter);
+  document.getElementById('q-deltas').innerHTML = quarterDeltaHTML(r);
+  render();   // 上部の体力・メンタルゲージもアニメで更新
+}
+function proceedToEvent(){
+  if(S.over) return;
+  showEvent();
+  render();
+}
+
+// 完了時の紙吹雪/クラッカー演出(視覚効果のみ)
+function launchConfetti(){
+  const box = document.getElementById('confetti');
+  if(!box) return;
+  const colors = ['#f0883e','#58a6ff','#3fb950','#d29922','#f778ba','#a371f7','#ffffff'];
+  for(let i=0;i<50;i++){
+    const d = document.createElement('div');
+    d.className = 'confetti-piece';
+    d.style.left = (Math.random()*100) + 'vw';
+    d.style.background = colors[i % colors.length];
+    const dur = 1.8 + Math.random()*1.4, delay = Math.random()*0.5;
+    d.style.animation = 'confetti-fall ' + dur + 's linear ' + delay + 's forwards';
+    box.appendChild(d);
+    setTimeout(function(){ d.remove(); }, (dur+delay)*1000 + 300);
+  }
+  const pop = document.createElement('div');
+  pop.className = 'popper'; pop.textContent = '🎉';
+  box.appendChild(pop);
+  setTimeout(function(){ pop.remove(); }, 1100);
 }
 
 function resolveSuccess(){
@@ -1806,25 +1849,28 @@ function showPlay(){ showPhase('phase-play'); updatePreview(); renderCare(); }
 
 function showComplete(){
   const r = S.projectEnded;
+  const q = S.quarterResult;
   showPhase('phase-complete');
+  // この四半期の進捗バー + 体力メンタル増減をまとめて表示
+  animateBar('comp-bar','comp-bar-txt', q.pctBefore, q.pctAfter);
+  document.getElementById('comp-deltas').innerHTML = quarterDeltaHTML(q);
   const head = document.getElementById('comp-head');
   const body = document.getElementById('comp-body');
   if(r.success){
     head.innerHTML = '🎉 プロジェクト完了！';
     let html = '<p><b>「'+r.name+'」</b>を無事に完遂した。</p>';
     html += '<p class="res-line pos">仕事力が +'+r.gain+' 上がった。</p>';
-    html += '<p class="res-line">あなたの収入：'+man(r.earned)+'</p>';
     html += '<p class="res-line pos">会社の利益：'+man(r.revenue)+'</p>';
     if(r.overflow > 0){
       const pct = Math.round((r.overflow / S.project.required) * 100 / 10) * 10;
       html += '<p class="res-line pos">進捗100%超過（約+'+pct+'%）！余剰工数は他チームのヘルプに回り収入になった。</p>';
     }
     body.innerHTML = html;
+    launchConfetti();   // 🎉 クラッカー演出
   } else {
     head.innerHTML = '💥 プロジェクト失敗…';
     let html = '<p><b>「'+r.name+'」</b>は納期に間に合わなかった。</p>';
     html += '<p class="res-line neg">会社のキャッシュが '+man(r.loss)+' 減った。</p>';
-    html += '<p class="res-line">あなたの収入：'+man(r.earned)+'</p>';
     if(r.buyout) html += '<p class="res-line rare">🏛️ 倒産寸前の会社を買収し、社長に就任した！</p>';
     body.innerHTML = html;
   }
@@ -1845,7 +1891,7 @@ function goToSelect(){
       + '<span class="tag '+(o.staminaWeight>=o.mentalWeight?'sta':'men')+'">'+o.type+'</span>'
       + '<span class="tag pay">報酬 '+payRank(o.pay)+'</span>'
       + '</div>'
-      + '<div class="sub" style="margin-top:6px;">難易度 '+o.difficulty+'｜納期 '+o.length+'期｜受注額 '+man(o.contract)
+      + '<div class="sub" style="margin-top:6px;">難易度 '+o.difficulty+'｜規模 約'+o.manDays.toLocaleString()+'人日｜納期 '+o.length+'期｜受注額 '+man(o.contract)
       + '（失敗時 会社損失 約'+man(Math.round(o.contract*CONFIG.cashLossRate))+'）</div>';
   }
 }
@@ -1945,7 +1991,7 @@ function render(){
   document.getElementById('proj-name').textContent = proj.name;
   document.getElementById('proj-brief').textContent = proj.brief;
   document.getElementById('proj-desc').textContent =
-    '難易度 '+proj.difficulty+'｜'+proj.type+'｜報酬 '+payRank(proj.pay)+'｜納期 '+proj.length+'期｜受注額 '+man(proj.contract);
+    '難易度 '+proj.difficulty+'｜'+proj.type+'｜規模 約'+proj.manDays.toLocaleString()+'人日｜報酬 '+payRank(proj.pay)+'｜納期 '+proj.length+'期｜受注額 '+man(proj.contract);
   document.getElementById('proj-tags').innerHTML =
     '<span class="tag sta">体力消耗 '+(proj.staminaWeight>=1.2?'大':proj.staminaWeight>=0.95?'中':'小')+'</span>'
     + '<span class="tag men">メンタル消耗 '+(proj.mentalWeight>=1.2?'大':proj.mentalWeight>=0.95?'中':'小')+'</span>';
