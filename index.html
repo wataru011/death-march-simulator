@@ -8,7 +8,7 @@
   :root{
     --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#2d3543;
     --txt:#e6edf3; --sub:#9aa7b4; --accent:#58a6ff;
-    --sta:#3fb950; --men:#d29922; --wp:#a371f7; --money:#e3b341;
+    --sta:#3fb950; --men:#d29922; --wp:#a371f7; --money:#e3b341; --cash:#2dd4bf;
     --danger:#f85149; --good:#3fb950;
   }
   *{box-sizing:border-box;}
@@ -24,7 +24,6 @@
   .panel{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:12px 0;}
   .row{display:flex; gap:12px; flex-wrap:wrap;}
   .row>*{flex:1; min-width:140px;}
-  /* 3-stage health */
   .seg{display:flex; gap:4px; margin-top:4px;}
   .seg>i{flex:1; height:12px; border-radius:4px; background:#0a0e14; border:1px solid var(--line);}
   .gauge-label{display:flex; justify-content:space-between; font-size:.85rem;}
@@ -33,10 +32,9 @@
   .seg.sta i.on{background:var(--sta); border-color:var(--sta);}
   .seg.men i.on{background:var(--men); border-color:var(--men);}
   .seg.lowfill i.on{background:var(--danger); border-color:var(--danger);}
-  .wpline{font-size:1rem; margin-top:8px;}
-  .wpline b{color:var(--wp); font-size:1.25rem;}
-  .money b{color:var(--money); font-size:1.25rem;}
-  /* controls */
+  .statline{font-size:1rem; margin-top:8px;}
+  .statline b{font-size:1.2rem;}
+  .wp b{color:var(--wp);} .money b{color:var(--money);} .cash b{color:var(--cash);}
   .ctrl{margin:10px 0;}
   .ctrl label{display:flex; justify-content:space-between; font-size:.9rem; margin-bottom:4px;}
   .ctrl .val{color:var(--accent); font-weight:bold;}
@@ -49,13 +47,16 @@
     background:var(--accent); transition:filter .15s; width:100%; margin-top:8px;
   }
   button:hover{filter:brightness(1.1);}
+  button:disabled{opacity:.4; cursor:not-allowed;}
   .choices button, .opt-card{background:var(--panel2); border:1px solid var(--line); color:var(--txt); text-align:left;}
   .choices button{margin-top:8px;}
   .choices button:hover{border-color:var(--accent); filter:none;}
   .opt-card{border-radius:10px; padding:12px; margin-top:10px; cursor:pointer;}
   .opt-card:hover{border-color:var(--accent);}
   .opt-card h3{margin:0 0 6px; font-size:1.02rem;}
-  /* project meter */
+  .care{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;}
+  .care button{width:auto; flex:1; min-width:150px; font-size:.82rem; padding:8px 10px; background:var(--panel2); border:1px solid var(--line); color:var(--txt); margin-top:0;}
+  .care button:hover:not(:disabled){border-color:var(--money); filter:none;}
   .kbar{height:18px; background:#0a0e14; border:1px solid var(--line); border-radius:9px; overflow:hidden; position:relative;}
   .kbar>span{display:block; height:100%; background:linear-gradient(90deg,#1f6feb,#58a6ff); width:0; transition:width .4s;}
   .kbar .txt{position:absolute; inset:0; text-align:center; font-size:.78rem; line-height:18px;}
@@ -63,11 +64,13 @@
   .tag.sta{color:var(--sta); border-color:var(--sta);}
   .tag.men{color:var(--men); border-color:var(--men);}
   .tag.pay{color:var(--money); border-color:var(--money);}
-  .log{font-size:.85rem; max-height:170px; overflow-y:auto;}
+  .tag.ability{color:var(--wp); border-color:var(--wp);}
+  .log{font-size:.85rem; max-height:160px; overflow-y:auto;}
   .log p{margin:.25em 0; padding-left:10px; border-left:2px solid var(--line);}
   .log .ev{border-left-color:var(--wp);}
   .log .ok{border-left-color:var(--good);}
   .log .bad{border-left-color:var(--danger);}
+  .log .rare{border-left-color:#f778ba;}
   .center{text-align:center;}
   .warn{color:var(--men); font-size:.85rem; margin-top:6px;}
   .end-emoji{font-size:3rem; text-align:center; margin:.2em 0;}
@@ -75,10 +78,11 @@
   .meta{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;}
   .pill{background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:2px 12px; font-size:.85rem;}
   .res-line{margin:.2em 0;}
-  .res-line.pos{color:var(--good);} .res-line.neg{color:var(--danger);}
+  .res-line.pos{color:var(--good);} .res-line.neg{color:var(--danger);} .res-line.rare{color:#f778ba; font-weight:bold;}
   table.help{font-size:.83rem; width:100%; border-collapse:collapse;}
   table.help td{padding:2px 6px; border-bottom:1px solid var(--line); vertical-align:top;}
   details{margin-top:8px;} summary{cursor:pointer; color:var(--accent); font-size:.9rem;}
+  .abilities{font-size:.8rem; margin-top:6px;}
 </style>
 </head>
 <body>
@@ -91,25 +95,35 @@
     <div class="panel">
       <p>あなたはストレート大卒、<b>22歳</b>でソフトウェア会社に入社した新入社員。<br>
       四半期ごとに働き方を選び、プロジェクトをこなして<b>仕事力</b>と<b style="color:var(--money)">貯金</b>を増やしていく。</p>
-      <p>だが——働きすぎれば<b style="color:var(--sta)">体力</b>が尽きて<b style="color:var(--danger)">過労死</b>。
+      <p>働きすぎれば<b style="color:var(--sta)">体力</b>が尽きて<b style="color:var(--danger)">過労死</b>。
       心がすり減れば<b style="color:var(--men)">メンタル</b>が折れる。
-      仕事をこなせなければ会社は<b>倒産</b>。<br>
+      プロジェクトに失敗し<b style="color:var(--cash)">会社のキャッシュ</b>が尽きれば<b>倒産</b>。<br>
       恋人や家族との時間も、働きすぎれば失われていく。</p>
-      <p><b>40歳</b>まで生き延びれば引退。そのときの<b style="color:var(--money)">貯金額</b>で、その後の人生が決まる。</p>
-      <p class="sub">この世界に運（ランダム）は存在しない。すべてはあなたの選択で決まる。人生ってそういうものだからね。</p>
+      <p><b>40歳</b>まで生き延びれば引退。そのときの<b style="color:var(--money)">貯金額</b>で人生の結末が決まる。</p>
+      <p class="sub">運（ランダム）は存在しない。すべてはあなたの選択で決まる。人生ってそういうものだからね。</p>
       <details>
         <summary>ルール詳細を見る</summary>
         <table class="help">
-          <tr><td>工数</td><td>(20日＋休日勤務)×3ヶ月×労働時間×仕事力。期限内に必要工数を満たせば成功。100%を超えた分は他チームのヘルプに回り、収入になる。</td></tr>
-          <tr><td>仕事力</td><td>難しいプロジェクトを完遂するほど大きく上がる。簡単な仕事ではあまり上がらない。</td></tr>
-          <tr><td>体力 / メンタル</td><td>長く働くほど減り、休むほど回復する。<b>減り具合は感覚でしか分からない</b>（3段階表示）。プロジェクトにより消耗の傾向が違う。</td></tr>
-          <tr><td>お金</td><td>働いた量×プロジェクトの報酬率で増える。高報酬の案件ほど過酷。</td></tr>
-          <tr><td>プロジェクト完了</td><td>完了後、次の案件を2つから選ぶ。</td></tr>
-          <tr><td>イベント</td><td>毎四半期発生（同じ出来事は二度起きない）。4択で選ぶと結果が判明。<b>過去の選択がその後の出来事を変える</b>。恋人・結婚・出産で人生が分岐。</td></tr>
-          <tr><td>結末</td><td>体力0で過労死／メンタル0で離職／2連続失敗で倒産／40歳到達なら貯金額に応じた4つの結末。</td></tr>
+          <tr><td>工数</td><td>(20日＋休日勤務)×3ヶ月×労働時間×仕事力。期限内に必要工数を満たせば成功。100%超過分は他チームのヘルプに回り収入になる。</td></tr>
+          <tr><td>仕事力</td><td>難しいプロジェクトを完遂するほど大きく上がる。</td></tr>
+          <tr><td>体力 / メンタル</td><td>長く働くほど減り、休むほど回復。<b>減り具合は感覚（3段階）でしか分からない</b>。お金を使えば回復できる。</td></tr>
+          <tr><td>お金</td><td>働いた量×報酬率で増える。回復や自己投資に使える。残せば結末が良くなる。</td></tr>
+          <tr><td>会社キャッシュ</td><td>プロジェクト成功で増え、失敗で減る。<b>受注額が大きい案件ほど失敗時の損失も大きい</b>。0になると倒産。</td></tr>
+          <tr><td>イベント</td><td>毎四半期発生・4択。効果は選択後に判明。過去の選択でその後が分岐。特定の道で<b>レアな才能</b>に目覚めることも。</td></tr>
+          <tr><td>恋愛</td><td>働きすぎると関係が悪化。選択次第で別れは回避できるが、相手の我慢にも限界がある。</td></tr>
         </table>
       </details>
-      <button onclick="startGame()">入社する ▶</button>
+      <button onclick="goIntro()">入社する ▶</button>
+    </div>
+  </div>
+
+  <!-- INTRO: 入社の挨拶 -->
+  <div id="screen-intro" class="hidden">
+    <div class="panel">
+      <h2>🎤 入社式の挨拶</h2>
+      <p>同期が見守る中、あなたは壇上で意気込みを語ることになった。<br>最初のひと言が、あなたという人間を形づくる。</p>
+      <p class="sub">※ 選んだ意気込みによって初期能力が変わります。</p>
+      <div class="choices" id="intro-choices"></div>
     </div>
   </div>
 
@@ -131,15 +145,18 @@
         </div>
       </div>
       <div class="row" style="margin-top:10px;">
-        <div class="wpline">仕事力：<b id="wp"></b></div>
-        <div class="wpline money">貯金：<b id="money"></b></div>
+        <div class="statline wp">仕事力 <b id="wp"></b></div>
+        <div class="statline money">貯金 <b id="money"></b></div>
+        <div class="statline cash">会社 <b id="cash"></b></div>
       </div>
+      <div id="abilities" class="abilities"></div>
       <div id="rel-warn" class="warn hidden"></div>
     </div>
 
     <!-- PLAY -->
     <div id="phase-play" class="panel">
       <h2>📋 進行中：<span id="proj-name"></span></h2>
+      <div class="sub" id="proj-brief" style="margin-bottom:4px;"></div>
       <div class="sub" id="proj-desc"></div>
       <div style="margin:8px 0;"><span id="proj-tags"></span></div>
       <div class="kbar"><span id="proj-bar"></span><div class="txt" id="proj-ktxt"></div></div>
@@ -154,7 +171,10 @@
         <input type="range" id="wknd" min="0" max="4" step="1" value="0" oninput="updatePreview()">
       </div>
       <div class="preview" id="preview"></div>
-      <p class="sub" style="margin-top:6px;">※ 体力・メンタルがどれだけ減るかは、働いてみないと分からない。</p>
+
+      <div class="sub" style="margin-top:12px;">💴 お金で自己投資（働く前に何度でも）</div>
+      <div class="care" id="care"></div>
+
       <button onclick="work()">この四半期を働く ▶</button>
     </div>
 
@@ -168,7 +188,7 @@
     <!-- PROJECT SELECT -->
     <div id="phase-select" class="panel hidden">
       <h2>📝 次に受けるプロジェクトを選ぶ</h2>
-      <p class="sub">2つの案件が提示された。今の体力・メンタルと相談して選ぼう。</p>
+      <p class="sub">2つの案件が提示された。今の体力・メンタル・会社の懐と相談して選ぼう。</p>
       <div id="opt-A" class="opt-card" onclick="chooseProject(0)"></div>
       <div id="opt-B" class="opt-card" onclick="chooseProject(1)"></div>
     </div>
@@ -215,12 +235,40 @@ const CONFIG = {
   startStamina: 100, startMental: 100, startWorkPower: 10, startMoney: 0,
   baseDrain: 0.35, restRate: 1.0,
   marriedBonus: 4, gfBonus: 2, childBonus: 2,
-  successMental: 5, failMental: 10,
-  bankruptcyFails: 2, breakupMental: 25,
+  successMental: 5, failMental: 8,
   moneyRate: 300,
-  // 40歳時の貯金額(円)による4エンディング閾値
+  // 恋愛: crisisMental 未満で「危機」イベント。回避できるが strain が限界(maxStrain)に達すると別れ
+  crisisMental: 32, maxStrain: 3,
+  // 会社キャッシュ
+  companyCashStart: 10000000,
+  contractBase: 2000000, contractGrowth: 0.18,
+  cashWinRate: 0.30, cashLossRate: 0.55,
+  // お金で自己投資(コストと効果)
+  care: {
+    massage: { cost: 300000,  label:'マッサージ・整体',     sta:15 },
+    trip:    { cost: 600000,  label:'旅行でリフレッシュ',   men:20 },
+    gym:     { cost: 1500000, label:'パーソナルジム',       maxSta:8 },
+    clinic:  { cost: 1500000, label:'メンタルクリニック',   maxMen:8 },
+  },
+  // レア能力
+  geniusWpThreshold: 40,       // この仕事力以上で簡単な案件だと天才の退屈ペナルティ
+  geniusBoredomPerDay: 0.22,
+  buyoutCost: 20000000,        // 倒産時、貯金がこれ以上あれば会社を買収して社長就任
+  buyoutRecap: 15000000,
   endRich: 33000000, endWealthy: 22000000, endNormal: 12000000,
 };
+
+/* ===================== 入社の挨拶(初期パラメータ) ===================== */
+const GREETINGS = [
+  { label:'「誰よりも働く覚悟です！」', mod:{wp:4, maxMen:-6},
+    log:'闘志あふれる宣言。仕事力は高いが、無理をしがちで心は脆い。' },
+  { label:'「体力には自信があります！」', mod:{maxSta:25},
+    log:'頼もしい体育会系。体力の最大値が大きく上がった。' },
+  { label:'「メンタルは鋼です！」', mod:{maxMen:25},
+    log:'動じない強い心。メンタルの最大値が大きく上がった。' },
+  { label:'「ワークライフバランスを大事にします」', mod:{maxSta:8, maxMen:10, wp:-1, money:1000000},
+    log:'堅実派。バランス良く、いくらかの蓄えもある。仕事力はやや控えめ。' },
+];
 
 /* ===================== PROJECTS ===================== */
 const PROFILES = [
@@ -244,10 +292,23 @@ function projName(seed){
 }
 function diffStars(index, reqMult){
   let t = Math.floor(index/3) + (reqMult>1.1?1:0) + 1;
-  t = Math.max(1, Math.min(5, t));
-  return '★'.repeat(t);
+  return '★'.repeat(Math.max(1, Math.min(5, t)));
 }
-// index = これまでに着手したプロジェクト数。variant 0=安定案件 / 1=高難度高報酬
+function projBrief(index, variant, prof){
+  if(index === 0) return '新人研修も兼ねた小さな案件。まずはここで仕事の流れを掴もう。';
+  const base = variant === 0
+    ? '比較的落ち着いた案件。無理なく進められそうだ。'
+    : '炎上気味の大型案件。報酬は大きいが、生半可な覚悟では務まらない。';
+  const flavor = {
+    '体力消耗型':'連日の対応で体力をごっそり持っていかれる。',
+    'メンタル消耗型':'仕様変更とクレームの嵐で精神がすり減る。',
+    'バランス型':'体力も気力もまんべんなく削られる。',
+    '激務(肉体)型':'徹夜と泊まり込みが当たり前の現場。',
+    '激務(精神)型':'重圧と責任が常に肩にのしかかる。',
+  }[prof.type];
+  return base + ' ' + flavor;
+}
+// index = これまでに着手した案件数。variant 0=安定案件 / 1=高難度高報酬
 function makeOption(index, variant){
   const expectedWp = CONFIG.startWorkPower + 2 * index;
   const hTarget = Math.min(13, 7 + index * 0.13);
@@ -257,25 +318,24 @@ function makeOption(index, variant){
   if(variant === 0){ pay = 0.90 + (index%2)*0.10; reqMult = 0.90; wpBonus = 0; kind='安定案件'; }
   else            { pay = 1.45 + (index%2)*0.20; reqMult = 1.30; wpBonus = 1; kind='高難度・高報酬'; }
   const required = Math.round(expectedWp * length * 60 * hTarget * reqMult);
-  const nameSeed = index*2 + variant;
+  const contract = Math.round(CONFIG.contractBase * length * pay * (1 + index * CONFIG.contractGrowth));
   return {
-    index, variant, kind, name: projName(nameSeed),
-    length, required, reqMult,
+    index, variant, kind, name: projName(index*2 + variant),
+    length, required, reqMult, contract,
     staminaWeight: prof.s, mentalWeight: prof.m, type: prof.type,
     pay, wpBonus, difficulty: diffStars(index, reqMult),
+    brief: projBrief(index, variant, prof),
     accumulated: 0, quartersElapsed: 0, earned: 0,
   };
 }
 function payRank(pay){ return pay >= 1.3 ? '高' : (pay >= 1.0 ? '標準' : 'やや低'); }
 
 /* ===================== EVENTS ===================== */
-// eff: dMaxSta,dMaxMen,dWp,dSta,dMen,money(円),rel('girlfriend'|'marry'|'child'|'breakup')
-// flags: 選択でtrueにするフラグ名の配列。cond(s) で s.flags を参照して分岐。
 const EVENTS = [
   { id:'welcome', cond:()=>true, title:'新人歓迎会',
     text:'部署の歓迎会。あなたはどう振る舞う？',
     choices:[
-      {label:'先輩に酒を注ぎまくり人脈を広げる', flags:['networker'], eff:{dWp:2,dSta:-5}, log:'多くの先輩と顔見知りになった。人脈ができた。'},
+      {label:'先輩に酒を注ぎまくり人脈を広げる', flags:['networker'], eff:{dWp:2,dSta:-5}, log:'多くの先輩と顔見知りになった。'},
       {label:'隅で同期と語り合う', flags:['hasPeers'], eff:{dMen:8}, log:'同期と意気投合し、心強い仲間ができた。'},
       {label:'酔い潰れるまで飲む', eff:{dSta:-12,dMen:5}, log:'記憶は無いが、楽しかったらしい。'},
       {label:'体調を理由に抜けて勉強する', flags:['studious'], eff:{dWp:3,dMen:-4}, log:'独り黙々と自己研鑽した。'},
@@ -283,7 +343,7 @@ const EVENTS = [
   { id:'checkup', cond:()=>true, title:'入社後の健康診断',
     text:'医者に「働きすぎると危ないですよ」と釘を刺された。',
     choices:[
-      {label:'ジムに通い始める', flags:['gym'], eff:{dMaxSta:15,dSta:-5}, log:'体を鍛え始めた。体力の最大値が上がった！'},
+      {label:'ジムに通い始める', flags:['gym'], eff:{dMaxSta:15,dSta:-5}, log:'体を鍛え始めた。'},
       {label:'食生活を整える', flags:['healthDiet'], eff:{dMaxSta:8,dMaxMen:4}, log:'健康的な生活を心がけた。'},
       {label:'サプリで誤魔化す', eff:{dSta:10}, log:'とりあえず元気が出た気がする。'},
       {label:'気にせず仕事に打ち込む', flags:['reckless'], eff:{dWp:3,dSta:-6}, log:'健康より仕事を選んだ。'},
@@ -292,8 +352,8 @@ const EVENTS = [
     text:'圧倒的な実力を持つ先輩がいる。あなたは——',
     choices:[
       {label:'弟子入りして教えを請う', flags:['mentor'], eff:{dWp:4,dMen:-2}, log:'師匠を得た。多くを学んだ。'},
-      {label:'ライバル視して対抗する', flags:['rival'], eff:{dWp:3,dSta:-6}, log:'打倒すべき相手を見つけ、闘志が湧いた。'},
-      {label:'我が道を行く', flags:['soloPath'], eff:{dMaxMen:6}, log:'他人と比べず、自分のペースを貫くことにした。'},
+      {label:'ライバル視して対抗する', flags:['rival'], eff:{dWp:3,dSta:-6}, log:'打倒すべき相手を見つけた。'},
+      {label:'我が道を行く', flags:['soloPath'], eff:{dMaxMen:6}, log:'自分のペースを貫くことにした。'},
       {label:'特に何も思わない', eff:{dMen:2}, log:'いつも通りの日々。'},
     ]},
   { id:'mentor_promo', cond:(s)=>s.flags.mentor && s.years>=4, title:'師匠の推薦',
@@ -304,34 +364,50 @@ const EVENTS = [
       {label:'荷が重いと辞退する', eff:{dMen:-4}, log:'チャンスを見送った。'},
       {label:'師匠を食事に誘い恩返し', eff:{dMen:8,money:-100000}, log:'師との絆が深まった。'},
     ]},
+  { id:'genius', cond:(s)=>s.workPower>=35 && !s.abilities.genius, title:'天才の片鱗', rare:true,
+    text:'あなたの仕事ぶりに、社内がざわめく。「あいつは天才だ」と。',
+    choices:[
+      {label:'【才能開花】天才であることを受け入れる', flags:[], grant:'genius', eff:{dWp:6}, log:'《天才》に目覚めた！圧倒的な仕事力を得る。だが——簡単な仕事では退屈に苛まれ、心がすり減るようになった。'},
+      {label:'驕らず初心を忘れない', eff:{dMaxMen:10,dWp:2}, log:'謙虚さを保ち、精神的に成熟した。'},
+      {label:'プレッシャーに感じる', eff:{dMen:-6,dWp:1}, log:'期待が重荷になった。'},
+      {label:'実力を隠して平凡に振る舞う', eff:{dMen:4}, log:'目立たぬよう生きることにした。'},
+    ]},
+  { id:'phoenix', cond:(s)=>s.flags.reckless && s.years>=4 && !s.abilities.phoenix, title:'極限の果てに', rare:true,
+    text:'限界を超えて働き続けたある夜、意識が遠のく中で、あなたは奇妙な感覚に包まれた。死の淵で何かが芽生えようとしている。',
+    choices:[
+      {label:'【覚醒】極限を受け入れ、その先へ', flags:[], grant:'phoenix', eff:{dMen:-6,dSta:-6}, log:'《不死鳥》に目覚めた！次に過労死しても、一度だけ灰の中から蘇る。'},
+      {label:'恐怖を感じ、休養を取る', eff:{dSta:18,dMen:10,money:-100000}, log:'我に返り、しっかり休んだ。'},
+      {label:'病院で精密検査を受ける', eff:{dMaxSta:6,money:-150000}, log:'大事には至らず、体を見直した。'},
+      {label:'気のせいだと働き続ける', eff:{dWp:3,dSta:-10}, log:'限界を無視して働いた。'},
+    ]},
+  { id:'ambition', cond:(s)=>s.years>=6 && s.money>=3000000 && !s.abilities.buyout, title:'経営への野心', rare:true,
+    text:'幾多の修羅場をくぐり、あなたはふと思う。「いっそ、自分が会社を動かす側になれば——」',
+    choices:[
+      {label:'【野心】いつか会社を買収すると誓い、経営を学ぶ', flags:[], grant:'buyout', eff:{dWp:2,dMen:-2}, log:'《買収の野心》を得た！会社が倒産寸前でも、貯金があれば買収して社長に成り上がれる。'},
+      {label:'MBA取得を目指す', flags:['studious'], eff:{dWp:5,dSta:-6,money:-500000}, log:'経営知識を体系的に学んだ。'},
+      {label:'今の立場で十分だと考える', eff:{dMen:5}, log:'身の丈に合った生き方を選んだ。'},
+      {label:'投資で資産を増やす', eff:{money:700000,dMen:-2}, log:'運用で資産を増やした。'},
+    ]},
   { id:'rival_showdown', cond:(s)=>s.flags.rival && s.years>=4, title:'ライバルとの一騎打ち',
     text:'例のライバルと、同じプロジェクトのリードを争うことになった。',
     choices:[
-      {label:'寝食を忘れて打ち勝つ', eff:{dWp:8,dSta:-14,dMen:-8,money:600000}, log:'死力を尽くして勝利した。実力が跳ね上がった。'},
-      {label:'正々堂々と競い、結果は時の運', eff:{dWp:4,dMen:-4}, log:'良い勝負だった。互いを認め合った。'},
-      {label:'手を組んで二人で成功させる', flags:['allyRival'], eff:{dWp:5,dMen:6}, log:'ライバルは最高の相棒になった。'},
+      {label:'寝食を忘れて打ち勝つ', eff:{dWp:8,dSta:-14,dMen:-8,money:600000}, log:'死力を尽くして勝利した。'},
+      {label:'正々堂々と競う', eff:{dWp:4,dMen:-4}, log:'良い勝負だった。'},
+      {label:'手を組んで二人で成功させる', eff:{dWp:5,dMen:6}, log:'ライバルは最高の相棒になった。'},
       {label:'勝負から降りる', eff:{dMen:-6}, log:'闘いを避けた。'},
     ]},
   { id:'marathon', cond:(s)=>s.flags.gym && s.years>=3, title:'フルマラソン挑戦',
     text:'ジム仲間にフルマラソンに誘われた。',
     choices:[
-      {label:'本気でトレーニングして完走', eff:{dMaxSta:20,dSta:-8,dMen:8}, log:'見事完走！心肺が鍛えられ、体力の最大値が大きく上がった。'},
+      {label:'本気でトレーニングして完走', eff:{dMaxSta:20,dSta:-8,dMen:8}, log:'見事完走！体力の最大値が大きく上がった。'},
       {label:'ファンランで楽しむ', eff:{dMaxSta:8,dMen:6}, log:'楽しく走り切った。'},
-      {label:'応援に回る', eff:{dMen:5}, log:'仲間を応援して気分転換になった。'},
+      {label:'応援に回る', eff:{dMen:5}, log:'気分転換になった。'},
       {label:'仕事を理由に断る', eff:{dWp:2,dMen:-3}, log:'走るより働くことを選んだ。'},
-    ]},
-  { id:'burnout_warn', cond:(s)=>s.flags.reckless && s.years>=2, title:'体からの警告',
-    text:'健康を顧みず働いてきたツケか、体に異変を感じる。',
-    choices:[
-      {label:'今すぐ生活を改める', flags:['healthDiet'], eff:{dMaxSta:6,dSta:10}, log:'危機感を持って立て直した。'},
-      {label:'人間ドックを受ける', eff:{dSta:6,dMen:-2,money:-80000}, log:'大事には至らず安心した。'},
-      {label:'まだ大丈夫と無視する', eff:{dWp:2,dMaxSta:-8}, log:'無理を重ね、体力の上限がじわりと削れた…。'},
-      {label:'漢方とマッサージに頼る', eff:{dSta:8,money:-50000}, log:'少し楽になった。'},
     ]},
   { id:'goukon', cond:(s)=>s.relationship==='single', title:'合コンのお誘い',
     text:'同期から合コンに誘われた。良い出会いがあるかも？',
     choices:[
-      {label:'積極的にアプローチする', flags:['metAtGoukon'], eff:{rel:'girlfriend',dMen:6}, log:'意気投合し、恋人ができた！💗'},
+      {label:'積極的にアプローチする', eff:{rel:'girlfriend',dMen:6}, log:'意気投合し、恋人ができた！💗'},
       {label:'仕事の話で盛り上がる', eff:{dWp:2}, log:'出会いは無かったが刺激にはなった。'},
       {label:'断って残業する', flags:['workaholic'], eff:{dWp:3,dMen:-5}, log:'出会いより仕事を選んだ。'},
       {label:'家でゆっくり休む', eff:{dSta:12,dMen:4}, log:'しっかり体を休めた。'},
@@ -339,7 +415,7 @@ const EVENTS = [
   { id:'dating_app', cond:(s)=>s.relationship==='single' && s.years>=2, title:'マッチングアプリ',
     text:'友人に勧められ、マッチングアプリを始めてみた。',
     choices:[
-      {label:'真剣に活動して恋人を作る', flags:['metOnline'], eff:{rel:'girlfriend',dMen:5}, log:'素敵な人と出会えた。恋人ができた！💗'},
+      {label:'真剣に活動して恋人を作る', eff:{rel:'girlfriend',dMen:5}, log:'素敵な人と出会えた。恋人ができた！💗'},
       {label:'軽い気持ちで友達を増やす', eff:{dMen:6}, log:'人付き合いが広がった。'},
       {label:'やっぱり性に合わず退会', eff:{dMen:-2}, log:'すぐにやめてしまった。'},
       {label:'課金しすぎて反省', eff:{dMen:3,money:-120000}, log:'出費だけがかさんだ…。'},
@@ -347,7 +423,7 @@ const EVENTS = [
   { id:'date', cond:(s)=>s.relationship==='girlfriend', title:'恋人との記念日',
     text:'付き合って初めての記念日。どう過ごす？',
     choices:[
-      {label:'有給を取って旅行へ', flags:['romantic'], eff:{dMaxMen:10,dMen:10,dSta:5,money:-200000}, log:'最高の思い出。メンタルの最大値が上がった！'},
+      {label:'有給を取って旅行へ', eff:{dMaxMen:10,dMen:10,dSta:5,money:-200000}, log:'最高の思い出。メンタルの最大値が上がった！'},
       {label:'高価なプレゼントを贈る', eff:{dMen:8,money:-150000}, log:'とても喜んでもらえた。'},
       {label:'仕事帰りに少しだけ会う', eff:{dMen:2,dWp:1}, log:'忙しくても会いに行った。'},
       {label:'締切を理由にドタキャン', flags:['workaholic'], eff:{dWp:3,dMen:-12}, log:'関係に亀裂が入った…。'},
@@ -355,8 +431,8 @@ const EVENTS = [
   { id:'propose', cond:(s)=>s.relationship==='girlfriend' && s.years>=3, title:'プロポーズ',
     text:'関係も深まってきた。結婚を考える時期かもしれない。',
     choices:[
-      {label:'海の見えるレストランで', flags:['weddingBeach'], eff:{rel:'marry',dMaxMen:12,dMen:10,money:-300000}, log:'プロポーズ成功！結婚した👰 メンタルの最大値が上がった。'},
-      {label:'思い出の場所でさりげなく', flags:['weddingSimple'], eff:{rel:'marry',dMaxMen:10,dMen:12}, log:'静かに、でも確かに結ばれた👰'},
+      {label:'海の見えるレストランで', flags:['weddingBeach'], eff:{rel:'marry',dMaxMen:12,dMen:10,money:-300000}, log:'プロポーズ成功！結婚した👰'},
+      {label:'思い出の場所でさりげなく', eff:{rel:'marry',dMaxMen:10,dMen:12}, log:'静かに、でも確かに結ばれた👰'},
       {label:'仕事が落ち着いてからにする', flags:['workaholic'], eff:{dWp:3,dMen:-4}, log:'また仕事を優先してしまった。'},
       {label:'まだ踏み切れない', eff:{dMen:-3}, log:'関係はそのまま続いた。'},
     ]},
@@ -366,7 +442,7 @@ const EVENTS = [
       {label:'長期休暇を取り存分に楽しむ', eff:{dSta:20,dMen:20,money:-400000}, log:'夢のような時間。心身が満たされた。'},
       {label:'短く済ませて仕事に戻る', flags:['workaholic'], eff:{dWp:3,dMen:-4}, log:'休みもそこそこに復帰した。'},
       {label:'近場で安く済ませ貯金に回す', eff:{dMen:6,money:200000}, log:'堅実に、でも幸せに過ごした。'},
-      {label:'記念に二人の将来設計を立てる', eff:{dMaxMen:6,dMen:6}, log:'未来への希望が膨らんだ。'},
+      {label:'二人の将来設計を立てる', eff:{dMaxMen:6,dMen:6}, log:'未来への希望が膨らんだ。'},
     ]},
   { id:'child', cond:(s)=>s.relationship==='married', title:'家族計画',
     text:'配偶者と将来について話し合った。',
@@ -387,7 +463,7 @@ const EVENTS = [
   { id:'kids_event', cond:(s)=>s.children>=1, title:'子供の運動会',
     text:'休日に子供の運動会。だが仕事の締め切りも近い。',
     choices:[
-      {label:'仕事を片付けて見に行く', eff:{dMaxMen:10,dMen:12,dSta:-6}, log:'最高の笑顔が見られた。心の支えが増えた。'},
+      {label:'仕事を片付けて見に行く', eff:{dMaxMen:10,dMen:12,dSta:-6}, log:'最高の笑顔が見られた。'},
       {label:'少しだけ顔を出す', eff:{dMen:5}, log:'なんとか駆けつけた。'},
       {label:'配信で見ながら働く', eff:{dWp:1,dMen:-2}, log:'仕事しつつ見届けた。'},
       {label:'締切優先で諦める', flags:['workaholic'], eff:{dWp:3,dMen:-14}, log:'家族をがっかりさせてしまった…。'},
@@ -403,15 +479,15 @@ const EVENTS = [
   { id:'leader', cond:(s)=>s.years>=3, title:'チームリーダー就任',
     text:'マネジメントを任されることになった。',
     choices:[
-      {label:'引き受けて全力で', flags:['leader'], eff:{dWp:7,dSta:-8,dMen:-8,money:400000}, log:'リーダーとして成長し、仕事力が大きく上がった。'},
+      {label:'引き受けて全力で', flags:['leader'], eff:{dWp:7,dSta:-8,dMen:-8,money:400000}, log:'リーダーとして成長した。'},
       {label:'引き受けて部下に任せる', flags:['leader'], eff:{dWp:4,dMen:-2}, log:'うまく権限委譲した。'},
-      {label:'プレイヤーに専念したい', flags:['specialist'], eff:{dWp:3}, log:'技術を極める道を選んだ。'},
+      {label:'プレイヤーに専念したい', eff:{dWp:3}, log:'技術を極める道を選んだ。'},
       {label:'荷が重く悩む', eff:{dMen:-6}, log:'プレッシャーに苦しんだ。'},
     ]},
   { id:'startup', cond:(s)=>s.flags.leader && s.years>=8, title:'独立・起業の誘い',
     text:'仲間から「一緒に会社をやらないか」と誘われた。',
     choices:[
-      {label:'リスクを取って参画', eff:{dWp:8,dSta:-12,dMen:-12,money:1500000}, log:'起業に挑戦。過酷だが実力も報酬も飛躍した。'},
+      {label:'リスクを取って参画', eff:{dWp:8,dSta:-12,dMen:-12,money:1500000}, log:'起業に挑戦。過酷だが報酬も飛躍した。'},
       {label:'副業として関わる', eff:{dWp:4,dSta:-6,money:500000}, log:'本業を続けつつ関わった。'},
       {label:'出資だけして応援', eff:{dMen:3,money:-300000}, log:'資金面で支えることにした。'},
       {label:'安定を選び断る', eff:{dMaxMen:6}, log:'今の生活を大事にした。'},
@@ -435,18 +511,10 @@ const EVENTS = [
   { id:'mentalcare', cond:()=>true, title:'メンタルヘルス研修',
     text:'会社がストレスケア研修を実施した。',
     choices:[
-      {label:'真剣に受けセルフケアを学ぶ', flags:['mindful'], eff:{dMaxMen:14}, log:'メンタルの最大値が上がった！'},
-      {label:'瞑想を習慣にする', flags:['mindful'], eff:{dMaxMen:8,dMen:6}, log:'心が落ち着くようになった。'},
+      {label:'真剣に受けセルフケアを学ぶ', eff:{dMaxMen:14}, log:'メンタルの最大値が上がった！'},
+      {label:'瞑想を習慣にする', eff:{dMaxMen:8,dMen:6}, log:'心が落ち着くようになった。'},
       {label:'良い息抜きと割り切る', eff:{dMen:8,dSta:6}, log:'リフレッシュできた。'},
       {label:'時間の無駄だと内職', flags:['workaholic'], eff:{dWp:2,dMen:-4}, log:'仕事は進んだが疲れた。'},
-    ]},
-  { id:'meditation_retreat', cond:(s)=>s.flags.mindful && s.years>=5, title:'瞑想リトリート',
-    text:'本格的な瞑想合宿の案内が届いた。',
-    choices:[
-      {label:'参加して心を整える', eff:{dMaxMen:14,dMen:10,money:-150000}, log:'雑念が消え、メンタルの最大値が大きく上がった。'},
-      {label:'日帰りで体験する', eff:{dMaxMen:6,dMen:6}, log:'短くも有意義だった。'},
-      {label:'本で独学する', eff:{dMaxMen:4}, log:'自分なりに学んだ。'},
-      {label:'やはり仕事が気になり不参加', flags:['workaholic'], eff:{dWp:2,dMen:-3}, log:'休めない性分だ。'},
     ]},
   { id:'sidejob', cond:(s)=>s.years>=2, title:'副業のお誘い',
     text:'知人から割の良い副業を持ちかけられた。',
@@ -467,18 +535,10 @@ const EVENTS = [
   { id:'conf', cond:(s)=>s.years>=4, title:'技術カンファレンス登壇',
     text:'大きな勉強会で登壇のオファーが来た。',
     choices:[
-      {label:'徹夜で資料を作り込み登壇', flags:['famous'], eff:{dWp:6,dSta:-10,dMen:-4}, log:'登壇は大成功。名が知られた。'},
+      {label:'徹夜で資料を作り込み登壇', eff:{dWp:6,dSta:-10,dMen:-4}, log:'登壇は大成功。名が知られた。'},
       {label:'手堅い内容で無難に', eff:{dWp:3,dMen:-2}, log:'そつなく発表した。'},
       {label:'聴講して刺激を受ける', eff:{dWp:2,dMen:5}, log:'モチベーションが上がった。'},
       {label:'緊張で辞退する', eff:{dMen:-4}, log:'チャンスを逃した。'},
-    ]},
-  { id:'book_offer', cond:(s)=>s.flags.famous && s.years>=6, title:'技術書執筆の依頼',
-    text:'登壇が評判を呼び、出版社から執筆依頼が来た。',
-    choices:[
-      {label:'寝る間を惜しんで書き上げる', eff:{dWp:6,dSta:-12,dMen:-6,money:500000}, log:'著書が出版された！第一人者として認知された。'},
-      {label:'共著で負担を分け合う', eff:{dWp:4,dMen:-2,money:250000}, log:'仲間と良い本を作った。'},
-      {label:'監修だけ引き受ける', eff:{dWp:2,money:150000}, log:'名前を貸す形で関わった。'},
-      {label:'多忙を理由に断る', eff:{dMen:-3}, log:'惜しいが見送った。'},
     ]},
   { id:'vacation', cond:(s)=>s.years>=3, title:'長期休暇のチャンス',
     text:'有給がたまっている。長期休暇を取れそうだ。',
@@ -492,7 +552,7 @@ const EVENTS = [
     text:'同僚に投資を勧められた。貯金をどうする？',
     choices:[
       {label:'インデックス投資で堅実に', eff:{money:600000}, log:'コツコツ運用し、資産が増えた。'},
-      {label:'勉強して個別株に挑戦', flags:['studious'], eff:{dWp:1,money:400000,dMen:-3}, log:'値動きに一喜一憂しつつ利益を得た。'},
+      {label:'勉強して個別株に挑戦', flags:['studious'], eff:{dWp:1,money:400000,dMen:-3}, log:'利益を得た。'},
       {label:'リスクを取らず貯金のまま', eff:{dMen:3}, log:'手堅く現金を守った。'},
       {label:'高配当に全力投資', eff:{money:-200000,dMen:-4}, log:'相場は甘くなく、含み損を抱えた…。'},
     ]},
@@ -501,12 +561,590 @@ const EVENTS = [
     choices:[
       {label:'誇りに思いさらに精進', eff:{dWp:5,dMen:10,money:300000}, log:'自信がつき、報奨金も得た。'},
       {label:'昇給交渉の材料にする', eff:{dWp:3,dMen:6,money:500000}, log:'評価を給与に反映させた。'},
-      {label:'チームの成果と還元', flags:['leader'], eff:{dMaxMen:10}, log:'信頼を得て心が満たされた。'},
+      {label:'チームの成果と還元', eff:{dMaxMen:10}, log:'信頼を得て心が満たされた。'},
       {label:'重圧に感じる', eff:{dMen:-5,dWp:2}, log:'期待が重荷になった。'},
+    ]},
+
+  /* ===== 作り込みイベント 追加分（条件付き・分岐・フラグ連鎖・レア能力） ===== */
+
+  { id:'first_junior', cond:(s)=>s.years>=2, title:'初めての後輩',
+    text:'あなたの下に新入社員が配属された。どう育てる？',
+    choices:[
+      {label:'手取り足取り丁寧に教える', flags:['teacher'], eff:{dMen:6,dSta:-4}, log:'良き先輩になった。教える喜びを知った。'},
+      {label:'背中を見せて育てる', flags:['teacher'], eff:{dWp:3,dMen:-2}, log:'自分の仕事ぶりで導いた。'},
+      {label:'放任して自走を促す', eff:{dWp:2}, log:'後輩は勝手に育った…かもしれない。'},
+      {label:'指導の負担に疲れる', eff:{dMen:-5,dSta:-3}, log:'人を育てるのは骨が折れる。'},
+    ]},
+  { id:'onsite', cond:(s)=>s.years>=2, title:'客先常駐',
+    text:'クライアント先での常駐勤務を命じられた。',
+    choices:[
+      {label:'環境に適応し信頼を得る', eff:{dWp:3,dMen:-3}, log:'客先で評価を高めた。'},
+      {label:'通勤の負担に耐える', eff:{dSta:-8,money:50000}, log:'手当は出たが疲れた。'},
+      {label:'人脈を作って立ち回る', flags:['networker'], eff:{dMen:4,dWp:1}, log:'客先にも味方を作った。'},
+      {label:'孤独に耐えかねる', eff:{dMen:-7}, log:'独りの常駐は心細い。'},
+    ]},
+  { id:'allnighter', cond:(s)=>s.years>=2, title:'納期前の徹夜',
+    text:'リリース前夜。終わらない作業を前にどうする？',
+    choices:[
+      {label:'徹夜で全部やりきる', eff:{dWp:3,dSta:-15,dMen:-5}, log:'意地で間に合わせた。'},
+      {label:'仮眠を取りつつ進める', eff:{dWp:1,dSta:-6}, log:'体を労りつつ乗り切った。'},
+      {label:'チームで分担して帰る', eff:{dMen:5,dWp:1}, log:'みんなで乗り越えた。'},
+      {label:'品質より納期と割り切る', eff:{dWp:1,dMen:-4}, log:'技術的負債を残した…。'},
+    ]},
+  { id:'big_outage', cond:(s)=>s.years>=3, title:'大規模障害',
+    text:'本番環境で大規模障害が発生。あなたの担当範囲だ。',
+    choices:[
+      {label:'先頭に立って復旧する', eff:{dWp:4,dSta:-12,dMen:-8}, log:'修羅場をくぐり、肝が据わった。'},
+      {label:'冷静に原因を切り分ける', eff:{dWp:3,dMen:-4}, log:'論理的に対処した。'},
+      {label:'上長と連携し責任分散', eff:{dMen:2,dWp:1}, log:'組織で受け止めた。'},
+      {label:'プレッシャーで潰れかける', eff:{dMen:-10,dSta:-4}, log:'心身ともに削られた。'},
+    ]},
+  { id:'deathmarch', cond:(s)=>s.years>=3, title:'本物のデスマーチ',
+    text:'誰がどう見ても破綻したスケジュール。それでも止まらないプロジェクト。',
+    choices:[
+      {label:'戦場を駆け抜け実力を磨く', eff:{dWp:6,dSta:-16,dMen:-12}, log:'地獄を見たが、圧倒的に成長した。'},
+      {label:'要所だけ守り消耗を抑える', eff:{dWp:2,dSta:-6,dMen:-3}, log:'うまく力を配分した。'},
+      {label:'撤退ラインを上に進言する', eff:{dMen:3,dWp:1}, log:'被害を最小限にとどめた。'},
+      {label:'ただ耐える', eff:{dSta:-10,dMen:-8}, log:'ひたすら耐えた。'},
+    ]},
+  { id:'reorg', cond:(s)=>s.years>=3, title:'組織再編',
+    text:'部署がまるごと再編されることに。あなたの居場所は？',
+    choices:[
+      {label:'新体制で主導権を握る', eff:{dWp:4,dMen:-4}, log:'変化を好機に変えた。'},
+      {label:'様子を見て立ち回る', eff:{dMen:2}, log:'波風立てずに乗り切った。'},
+      {label:'希望部署へ異動願い', eff:{dMen:6,dWp:-1}, log:'環境を変えて気が楽になった。'},
+      {label:'変化に振り回される', eff:{dMen:-6}, log:'落ち着かない日々が続いた。'},
+    ]},
+  { id:'overseas', cond:(s)=>s.years>=4, title:'海外出張',
+    text:'海外拠点との大型案件で、現地出張のチャンスが回ってきた。',
+    choices:[
+      {label:'飛び込んでグローバルに挑む', flags:['global'], eff:{dWp:5,dSta:-8,dMen:4,money:200000}, log:'世界が広がった。グローバル人材への一歩。'},
+      {label:'語学を猛特訓して臨む', flags:['global','studious'], eff:{dWp:3,dMen:-4}, log:'言葉の壁に挑んだ。'},
+      {label:'国内サポートに回る', eff:{dWp:2}, log:'裏方で支えた。'},
+      {label:'時差と慣れない環境に疲弊', eff:{dSta:-10,dMen:-4}, log:'海外は思った以上に過酷だった。'},
+    ]},
+  { id:'legacy_hero', cond:(s)=>s.years>=4, title:'伝説のレガシー退治',
+    text:'誰も触れたがらない、20年もののレガシーシステム。あなたに白羽の矢が。',
+    choices:[
+      {label:'徹底的に解析し刷新する', eff:{dWp:6,dSta:-10,dMen:-6}, log:'魔境を制し、社内の英雄になった。'},
+      {label:'リスクを抑えて部分改修', eff:{dWp:3,dMen:-2}, log:'手堅く改善した。'},
+      {label:'ドキュメント化に徹する', eff:{dWp:2,dMen:2}, log:'後世のために知見を残した。'},
+      {label:'触れて火傷する', eff:{dMen:-8,dSta:-4}, log:'底なし沼にハマった…。'},
+    ]},
+  { id:'firefighter', cond:(s)=>s.years>=4, title:'火消し職人',
+    text:'炎上案件に次々と投入されるあなた。「火消し」の異名がつき始めた。',
+    choices:[
+      {label:'火消しの専門家として極める', flags:['firefighter'], eff:{dWp:5,dSta:-8,dMen:-6,money:300000}, log:'修羅場のプロになった。'},
+      {label:'予防と仕組み化を提案', eff:{dWp:3,dMen:2}, log:'火事を未然に防ぐ側に回った。'},
+      {label:'割の良さを享受する', eff:{money:400000,dSta:-6}, log:'危険手当で潤った。'},
+      {label:'燃え尽きそうになる', eff:{dMen:-9,dSta:-5}, log:'火消しばかりで消耗した。'},
+    ]},
+  { id:'compe', cond:(s)=>s.years>=5, title:'大型コンペ',
+    text:'大口顧客を巡る提案コンペ。勝てば会社の命運を握る。',
+    choices:[
+      {label:'寝食を忘れて提案を磨く', eff:{dWp:5,dSta:-12,dMen:-6,money:500000}, log:'渾身の提案で受注を勝ち取った。'},
+      {label:'チームの強みを結集', eff:{dWp:3,dMen:4}, log:'総力戦で挑んだ。'},
+      {label:'手堅い提案でまとめる', eff:{dWp:2}, log:'無難に戦った。'},
+      {label:'重圧に飲まれる', eff:{dMen:-7}, log:'本番で力を出せなかった。'},
+    ]},
+  { id:'promotion', cond:(s)=>s.flags.leader && s.years>=5, title:'管理職への昇進',
+    text:'課長への昇進を打診された。プレイヤーから、マネージャーへ。',
+    choices:[
+      {label:'受けて組織を率いる', flags:['manager'], eff:{dWp:5,dMen:-6,money:600000}, log:'管理職に就いた。責任と給与が増えた。'},
+      {label:'プレイングマネージャーに', flags:['manager'], eff:{dWp:4,dSta:-6,money:400000}, log:'現場も見つつ管理も担う。'},
+      {label:'今は現場を選ぶ', flags:['specialist'], eff:{dWp:3}, log:'技術者の道を貫いた。'},
+      {label:'重責に悩む', eff:{dMen:-5,money:200000}, log:'昇進したが気は重い。'},
+    ]},
+  { id:'newtech_lead', cond:(s)=>s.years>=6, title:'新技術の旗振り役',
+    text:'社内に新技術を導入する旗振り役を任された。',
+    choices:[
+      {label:'先頭で布教し標準化する', eff:{dWp:6,dSta:-6,dMen:-4}, log:'技術の伝道師になった。'},
+      {label:'小さく試して広げる', eff:{dWp:4,dMen:-2}, log:'着実に浸透させた。'},
+      {label:'反対派を説得して回る', eff:{dMen:-5,dWp:2}, log:'政治的に骨が折れた。'},
+      {label:'流行りに振り回される', eff:{dMen:-4}, log:'技術選定に苦労した。'},
+    ]},
+  { id:'patent', cond:(s)=>s.flags.studious && s.years>=6, title:'特許出願',
+    text:'あなたの考案した仕組みが特許になりそうだ。',
+    choices:[
+      {label:'発明者として出願する', eff:{dWp:4,money:300000}, log:'特許を取得。報奨金も得た。'},
+      {label:'論文として発表する', eff:{dWp:5,dMen:-3}, log:'学術的な名声を得た。'},
+      {label:'社内ノウハウに留める', eff:{dWp:2,dMen:2}, log:'地道に価値を積んだ。'},
+      {label:'手続きの煩雑さに疲れる', eff:{dMen:-4,dWp:1}, log:'書類仕事に追われた。'},
+    ]},
+  { id:'mentor_pride', cond:(s)=>s.flags.teacher && s.years>=7, title:'教え子の活躍',
+    text:'かつて育てた後輩が、立派に活躍していると耳にした。',
+    choices:[
+      {label:'我が事のように誇りに思う', eff:{dMaxMen:10,dMen:8}, log:'育てた喜びが心を満たした。'},
+      {label:'さらに上を目指す刺激に', eff:{dWp:3,dMen:3}, log:'負けていられないと奮起した。'},
+      {label:'引き続き面倒を見る', eff:{dMen:5,dSta:-2}, log:'良き師であり続けた。'},
+      {label:'少し寂しさを感じる', eff:{dMen:-2,dMaxMen:4}, log:'巣立ちは少し寂しい。'},
+    ]},
+  { id:'global_project', cond:(s)=>s.flags.global && s.years>=6, title:'グローバルプロジェクト',
+    text:'各国のメンバーと進める大規模国際プロジェクトのコアに抜擢された。',
+    choices:[
+      {label:'世界を相手に存在感を示す', eff:{dWp:7,dSta:-10,dMen:-6,money:400000}, log:'国際的な実績を築いた。'},
+      {label:'橋渡し役に徹する', eff:{dWp:3,dMen:4}, log:'文化の架け橋になった。'},
+      {label:'時差勤務をこなす', eff:{dSta:-8,money:200000}, log:'昼夜逆転に耐えた。'},
+      {label:'言葉と文化の壁に苦しむ', eff:{dMen:-6}, log:'コミュニケーションに苦労した。'},
+    ]},
+  { id:'manager_burden', cond:(s)=>s.flags.manager, title:'管理職の板挟み',
+    text:'上からの圧力と、部下の不満。管理職ならではの板挟みに悩む。',
+    choices:[
+      {label:'部下を守る盾になる', eff:{dMen:-6,dMaxMen:8}, log:'信頼を勝ち取り、器が大きくなった。'},
+      {label:'上の意向を通す', eff:{dWp:2,dMen:-4}, log:'組織人として動いた。'},
+      {label:'うまく落とし所を探る', eff:{dWp:3,dMen:-2}, log:'巧みに調整した。'},
+      {label:'中間管理職に疲弊', eff:{dMen:-8,dSta:-3}, log:'板挟みに消耗した。'},
+    ]},
+  { id:'demotion_risk', cond:(s)=>s.years>=4, title:'評価ダウンの危機',
+    text:'今期の評価が芳しくない。このままでは降格もありうる。',
+    choices:[
+      {label:'巻き返しに全力を注ぐ', eff:{dWp:4,dSta:-8,dMen:-5}, log:'必死の挽回で評価を取り戻した。'},
+      {label:'上司に率直に相談する', eff:{dMen:3,dWp:1}, log:'軌道修正のヒントを得た。'},
+      {label:'得意分野で結果を出す', eff:{dWp:3,dMen:-2}, log:'強みで挽回した。'},
+      {label:'不当だと腐ってしまう', eff:{dMen:-7}, log:'やる気を失いかけた。'},
+    ]},
+  { id:'keyman', cond:(s)=>s.years>=8, title:'余人をもって代えがたし',
+    text:'あなたは今や、いなければ現場が回らない「キーマン」になっていた。',
+    choices:[
+      {label:'頼られる存在として応える', eff:{dWp:4,dMen:4,dSta:-4}, log:'組織の要として奮闘した。'},
+      {label:'属人化を解消し仕組み化', eff:{dWp:3,dMaxMen:6}, log:'自分がいなくても回る形を作った。'},
+      {label:'立場を活かし好条件を引き出す', eff:{money:500000,dWp:1}, log:'交渉力を発揮した。'},
+      {label:'抜けられない重圧に疲れる', eff:{dMen:-6,dSta:-4}, log:'休めない立場に消耗した。'},
+    ]},
+
+  { id:'zen_awaken', cond:(s)=>s.years>=5 && !s.abilities.zen && (s.flags.mindful || healthLevel(s.men,s.maxMen)===2), title:'禅の境地', rare:true,
+    text:'幾多の修羅場を越え、あなたの心は奇妙なほど凪いでいた。何が起きても、もう動じない。',
+    choices:[
+      {label:'【覚醒】心を手放し、無の境地へ', grant:'zen', eff:{dMen:6}, log:'《禅の境地》に目覚めた！どんな激務でもメンタルが減りにくくなった。'},
+      {label:'マインドフルネスを極める', eff:{dMaxMen:14}, log:'心の容量が大きく広がった。'},
+      {label:'人に教える側に回る', eff:{dMen:8,dWp:1}, log:'瞑想を広め、感謝された。'},
+      {label:'悟りきれずに俗世に戻る', eff:{dMen:4}, log:'まだ煩悩は捨てきれない。'},
+    ]},
+  { id:'ironbody_awaken', cond:(s)=>s.flags.gym && s.years>=4 && !s.abilities.ironbody, title:'鉄の肉体', rare:true,
+    text:'鍛え抜いた体は、もはや常人のそれではない。徹夜明けでも疲れ知らず。',
+    choices:[
+      {label:'【覚醒】肉体を極限まで鍛え上げる', grant:'ironbody', eff:{dSta:6}, log:'《鉄の肉体》に目覚めた！休んだときの回復力が大きく増した。'},
+      {label:'体力の最大値を伸ばす', eff:{dMaxSta:18}, log:'スタミナの器が大きくなった。'},
+      {label:'健康を周囲に広める', eff:{dMen:8,dSta:-2}, log:'みんなの健康意識を高めた。'},
+      {label:'鍛えすぎて故障する', eff:{dSta:-6,dMaxSta:4}, log:'オーバーワークで痛めた。'},
+    ]},
+  { id:'charisma_awaken', cond:(s)=>(s.flags.networker || s.flags.hasPeers) && s.years>=5 && !s.abilities.charisma, title:'人望の人', rare:true,
+    text:'気づけばあなたの周りには、いつも人が集まっていた。困ったときに助けてくれる仲間も多い。',
+    choices:[
+      {label:'【覚醒】人と人をつなぐ存在になる', grant:'charisma', eff:{dMen:6}, log:'《人望》に目覚めた！コネや顔の広さで、自己投資(ケア)が割安になった。'},
+      {label:'人脈を仕事に活かす', eff:{dWp:4,money:200000}, log:'紹介で良い仕事を得た。'},
+      {label:'コミュニティを作る', eff:{dMaxMen:12}, log:'居場所ができ、心が安定した。'},
+      {label:'付き合いに疲れることも', eff:{dMen:-3,dWp:1}, log:'人望ゆえの忙しさもある。'},
+    ]},
+
+  { id:'ex_reunion', cond:(s)=>s.relationship==='single' && s.years>=4, title:'元恋人との再会',
+    text:'街でばったり、昔の恋人と再会した。',
+    choices:[
+      {label:'よりを戻す', eff:{rel:'girlfriend',dMen:8}, log:'再び恋人になった。💗'},
+      {label:'友人として近況を語る', eff:{dMen:5}, log:'懐かしい時間を過ごした。'},
+      {label:'過去は過去と割り切る', eff:{dWp:2,dMen:-2}, log:'前を向くことにした。'},
+      {label:'未練に揺れる', eff:{dMen:-4}, log:'少し感傷的になった。'},
+    ]},
+  { id:'omiai', cond:(s)=>s.relationship==='single' && s.years>=5, title:'お見合いの話',
+    text:'親戚がお見合いをセッティングしてくれた。',
+    choices:[
+      {label:'真剣に向き合い交際へ', eff:{rel:'girlfriend',dMen:6}, log:'良縁に恵まれ、恋人ができた。💗'},
+      {label:'ご縁として一度会う', eff:{dMen:3}, log:'良い出会いの練習になった。'},
+      {label:'仕事を理由に断る', flags:['workaholic'], eff:{dWp:2,dMen:-3}, log:'今は仕事を選んだ。'},
+      {label:'結婚をまだ考えられない', eff:{dMen:2}, log:'自分のペースを大事にした。'},
+    ]},
+  { id:'office_crush', cond:(s)=>s.relationship==='single' && s.years>=2, title:'社内の気になる人',
+    text:'同じ部署に、気になる人がいる。',
+    choices:[
+      {label:'勇気を出して誘う', eff:{rel:'girlfriend',dMen:6,dSta:-2}, log:'社内恋愛が始まった。💗'},
+      {label:'仕事を通じて距離を縮める', eff:{dMen:4,dWp:1}, log:'少しずつ仲良くなった。'},
+      {label:'公私混同を避ける', eff:{dWp:2}, log:'けじめをつけた。'},
+      {label:'踏み出せずに終わる', eff:{dMen:-3}, log:'片想いのまま時が過ぎた。'},
+    ]},
+  { id:'long_single', cond:(s)=>s.relationship==='single' && s.years>=10, title:'独身を貫く人生',
+    text:'気づけば独身も長くなった。これからの生き方を考える。',
+    choices:[
+      {label:'独身の自由を満喫する', eff:{dMaxMen:10,dMen:8}, log:'一人の人生も悪くないと吹っ切れた。'},
+      {label:'仕事に生きると決める', eff:{dWp:5}, log:'キャリアに全てを注ぐ覚悟を決めた。'},
+      {label:'趣味の仲間を増やす', flags:['hasPeers'], eff:{dMen:8,dSta:-2}, log:'人とのつながりを広げた。'},
+      {label:'ふと孤独を噛みしめる', eff:{dMen:-5}, log:'寂しさがよぎった。'},
+    ]},
+
+  { id:'cohabit', cond:(s)=>s.relationship==='girlfriend' && s.years>=2, title:'同棲のお誘い',
+    text:'恋人と一緒に暮らす話が持ち上がった。',
+    choices:[
+      {label:'一緒に暮らし始める', flags:['cohabit'], eff:{dMaxMen:8,dMen:8,money:-150000}, log:'同棲を始め、心の支えが増えた。'},
+      {label:'もう少し今のままで', eff:{dMen:2}, log:'今の距離感を大事にした。'},
+      {label:'仕事の都合で先送り', flags:['workaholic'], eff:{dWp:2,dMen:-4}, log:'また仕事を優先した。'},
+      {label:'お試し期間を設ける', eff:{dMen:5}, log:'慎重に進めた。'},
+    ]},
+  { id:'meet_parents', cond:(s)=>s.relationship==='girlfriend' && s.years>=3, title:'両親への挨拶',
+    text:'恋人の両親に挨拶することになった。緊張の対面だ。',
+    choices:[
+      {label:'誠実に向き合い認められる', eff:{dMaxMen:8,dMen:8,dSta:-3}, log:'両親に気に入られ、関係が深まった。'},
+      {label:'手土産を奮発する', eff:{dMen:6,money:-80000}, log:'好印象を与えた。'},
+      {label:'仕事の安定をアピール', eff:{dWp:1,dMen:4}, log:'堅実さを示した。'},
+      {label:'緊張で失敗してしまう', eff:{dMen:-5}, log:'ぎこちない挨拶になった…。'},
+    ]},
+  { id:'gf_slump', cond:(s)=>s.relationship==='girlfriend' && s.years>=4, title:'恋人との倦怠期',
+    text:'付き合いが長くなり、最近どこかマンネリ気味だ。',
+    choices:[
+      {label:'新鮮なデートを企画する', eff:{dMen:8,money:-100000,dMaxMen:3}, log:'関係に新しい風が吹いた。'},
+      {label:'素直に気持ちを話し合う', eff:{dMen:6}, log:'お互いを再確認できた。'},
+      {label:'適度な距離を取る', eff:{dMen:2,dWp:2}, log:'少し冷却期間を置いた。'},
+      {label:'放置してしまう', eff:{dMen:-5}, log:'すれ違いが少し広がった…。'},
+    ]},
+  { id:'temptation', cond:(s)=>s.relationship!=='single', title:'誘惑',
+    text:'魅力的な相手から、際どいアプローチを受けた。あなたは——',
+    choices:[
+      {label:'きっぱり断り、恋人を想う', eff:{dMaxMen:8,dMen:5}, log:'誠実さを貫き、絆が強まった。'},
+      {label:'相手にせず受け流す', eff:{dMen:3}, log:'大人の対応をした。'},
+      {label:'少し心が揺れるが踏みとどまる', eff:{dMen:-3,dWp:1}, log:'危ういところで思いとどまった。'},
+      {label:'仕事の付き合いと割り切る', eff:{dWp:2,dMen:-2}, log:'距離を保った。'},
+    ]},
+  { id:'long_distance', cond:(s)=>s.relationship==='girlfriend' && s.years>=3, title:'遠距離恋愛',
+    text:'転勤や事情で、恋人と離れて暮らすことになった。',
+    choices:[
+      {label:'まめに連絡を取り支え合う', eff:{dMen:6,money:-50000}, log:'距離を越えて愛を育んだ。'},
+      {label:'会いに行く時間を作る', eff:{dMen:8,dSta:-5,money:-100000}, log:'会えた時間がかけがえない。'},
+      {label:'仕事に集中して耐える', flags:['workaholic'], eff:{dWp:3,dMen:-5}, log:'寂しさを仕事で紛らわせた。'},
+      {label:'すれ違いが増える', eff:{dMen:-6}, log:'距離が心の距離になりかけた…。'},
+    ]},
+  { id:'anniv_surprise', cond:(s)=>s.relationship==='girlfriend', title:'サプライズ計画',
+    text:'恋人を喜ばせるサプライズを考えている。',
+    choices:[
+      {label:'手の込んだ演出をする', eff:{dMaxMen:6,dMen:10,money:-150000,dSta:-3}, log:'最高の笑顔が見られた。'},
+      {label:'心のこもった手紙を贈る', eff:{dMen:8}, log:'気持ちが伝わった。'},
+      {label:'二人で静かに祝う', eff:{dMen:5}, log:'穏やかな幸せ。'},
+      {label:'準備が間に合わない', eff:{dMen:-3,dSta:-2}, log:'バタバタしてしまった。'},
+    ]},
+
+  { id:'trying_kids', cond:(s)=>s.relationship==='married' && s.children<1, title:'妊活',
+    text:'そろそろ子供を、と夫婦で話し合っている。',
+    choices:[
+      {label:'前向きに取り組む', eff:{dMen:8,dMaxMen:4}, log:'未来への希望が膨らんだ。'},
+      {label:'まずは生活基盤を整える', eff:{money:200000,dWp:1}, log:'堅実に準備を進めた。'},
+      {label:'仕事との両立を考える', eff:{dMen:-2,dWp:2}, log:'キャリアと天秤にかけた。'},
+      {label:'授かりものと焦らず構える', eff:{dMen:5}, log:'自然体で構えた。'},
+    ]},
+  { id:'parental_leave', cond:(s)=>s.relationship==='married' && s.children>=1, title:'育児休暇',
+    text:'育休を取るかどうか、悩ましい選択を迫られた。',
+    choices:[
+      {label:'しっかり育休を取る', flags:['tookLeave'], eff:{dMaxMen:10,dMen:12,dWp:-1}, log:'家族と濃密な時間を過ごした。'},
+      {label:'時短勤務で両立する', eff:{dMen:6,dWp:1}, log:'バランスを取った。'},
+      {label:'最小限で復帰する', eff:{dWp:3,dMen:-4}, log:'すぐ仕事に戻った。'},
+      {label:'取りたくても取れず葛藤', eff:{dMen:-6}, log:'職場の空気に阻まれた…。'},
+    ]},
+  { id:'baby_cry', cond:(s)=>s.children>=1, title:'子供の夜泣き',
+    text:'連夜の夜泣きで、まともに眠れない日々。',
+    choices:[
+      {label:'夫婦で交代して乗り切る', eff:{dSta:-6,dMen:6}, log:'協力して乗り越えた。'},
+      {label:'できる限り自分が担う', eff:{dSta:-12,dMaxMen:4}, log:'親としての覚悟が深まった。'},
+      {label:'実家や周囲を頼る', eff:{dMen:5,dSta:-3}, log:'周りに支えられた。'},
+      {label:'寝不足で仕事に影響', eff:{dSta:-8,dMen:-4}, log:'フラフラで出社した。'},
+    ]},
+  { id:'tanshin', cond:(s)=>s.relationship==='married' && s.years>=6, title:'単身赴任',
+    text:'遠方への転勤。家族と離れて暮らす単身赴任を打診された。',
+    choices:[
+      {label:'家族のため受け入れる', eff:{dWp:3,dMen:-6,money:300000}, log:'寂しさをこらえ、家族を支えた。'},
+      {label:'家族で引っ越す', eff:{dMen:4,dSta:-4,money:-200000}, log:'家族一緒の道を選んだ。'},
+      {label:'断って今の場所に残る', eff:{dWp:-1,dMen:5}, log:'家庭を最優先にした。'},
+      {label:'すれ違いが生じる', eff:{dMen:-7}, log:'距離が心配の種になった。'},
+    ]},
+  { id:'couple_slump', cond:(s)=>s.relationship==='married' && s.years>=5, title:'夫婦の倦怠期',
+    text:'長年連れ添い、会話も減ってきた。このままでいいのだろうか。',
+    choices:[
+      {label:'二人だけの時間を作る', eff:{dMen:8,dMaxMen:4,money:-100000}, log:'初心を思い出した。'},
+      {label:'感謝を言葉にして伝える', eff:{dMen:7}, log:'空気が和らいだ。'},
+      {label:'共通の趣味を始める', eff:{dMen:6,dSta:-2}, log:'新しい絆ができた。'},
+      {label:'見て見ぬふりをする', eff:{dMen:-5}, log:'溝が静かに広がった…。'},
+    ]},
+  { id:'third_child', cond:(s)=>s.children>=2 && s.years>=10, title:'三人目',
+    text:'にぎやかな我が家。三人目を考える時が来た。',
+    choices:[
+      {label:'大家族を選ぶ', eff:{rel:'child',dMaxMen:8,dMen:10,dSta:-8}, log:'三人目が誕生！大所帯になった👶'},
+      {label:'今いる子に注力する', eff:{dMen:6}, log:'今の家族を大切にした。'},
+      {label:'教育費を稼ぐ覚悟を決める', eff:{money:200000,dWp:2,dSta:-4}, log:'家族のために奮起した。'},
+      {label:'夫婦でよく相談する', eff:{dMaxMen:4}, log:'将来を見据えて話し合った。'},
+    ]},
+  { id:'kid_rebellion', cond:(s)=>s.children>=1 && s.years>=10, title:'子供の反抗期',
+    text:'子供が思春期を迎え、口もきいてくれなくなった。',
+    choices:[
+      {label:'根気よく向き合い続ける', eff:{dMaxMen:8,dMen:4,dSta:-4}, log:'時間をかけて信頼を取り戻した。'},
+      {label:'適度な距離で見守る', eff:{dMen:4}, log:'そっと見守ることにした。'},
+      {label:'配偶者と連携する', eff:{dMen:6}, log:'夫婦で支え合った。'},
+      {label:'すれ違いに心を痛める', eff:{dMen:-7}, log:'親の難しさを痛感した。'},
+    ]},
+  { id:'spouse_promo', cond:(s)=>s.relationship==='married' && s.years>=6, title:'配偶者の昇進',
+    text:'配偶者がキャリアで大きく飛躍することになった。',
+    choices:[
+      {label:'心から応援し家庭を支える', eff:{dMaxMen:8,dMen:8,dSta:-3}, log:'支え合う夫婦の形を築いた。'},
+      {label:'自分も負けじと奮起する', eff:{dWp:4,dMen:-2}, log:'刺激を受けて頑張った。'},
+      {label:'家事育児を引き受ける', eff:{dMen:5,dSta:-5}, log:'役割を交代した。'},
+      {label:'少し複雑な気持ちになる', eff:{dMen:-3,dWp:1}, log:'素直に喜べない自分もいた。'},
+    ]},
+  { id:'family_trip', cond:(s)=>s.relationship==='married', title:'家族旅行',
+    text:'久しぶりに家族で旅行に行く計画を立てる。',
+    choices:[
+      {label:'奮発して豪華な旅へ', eff:{dSta:12,dMen:16,money:-300000}, log:'最高の思い出ができた。'},
+      {label:'近場でのんびり過ごす', eff:{dSta:10,dMen:10,money:-50000}, log:'家族の絆が深まった。'},
+      {label:'子供の体験を優先する', eff:{dMen:10,dSta:5,money:-150000}, log:'子供の笑顔が輝いた。'},
+      {label:'仕事が気になり上の空', flags:['workaholic'], eff:{dWp:2,dMen:-4}, log:'心ここにあらずだった…。'},
+    ]},
+  { id:'anniversary_marriage', cond:(s)=>s.relationship==='married' && s.years>=4, title:'結婚記念日',
+    text:'大切な結婚記念日がやってきた。',
+    choices:[
+      {label:'特別な一日を演出する', eff:{dMaxMen:8,dMen:10,money:-150000}, log:'愛を再確認した。'},
+      {label:'感謝を込めて贈り物', eff:{dMen:8,money:-80000}, log:'喜んでもらえた。'},
+      {label:'いつも通り静かに祝う', eff:{dMen:5}, log:'穏やかな記念日。'},
+      {label:'うっかり忘れてしまう', eff:{dMen:-8}, log:'大目玉を食らった…。'},
+    ]},
+  { id:'kid_school', cond:(s)=>s.children>=1 && s.years>=8, title:'子供の進学',
+    text:'子供の進学先を決める大事な時期。教育方針を考える。',
+    choices:[
+      {label:'良い教育環境に投資する', eff:{dMen:6,money:-400000,dMaxMen:4}, log:'子供の将来に賭けた。'},
+      {label:'子供の意思を尊重する', eff:{dMen:8}, log:'子供を信じて見守った。'},
+      {label:'家計と相談して堅実に', eff:{money:100000,dMen:2}, log:'身の丈に合った選択をした。'},
+      {label:'教育費に頭を抱える', eff:{dMen:-5,dWp:2}, log:'お金の現実に直面した。'},
+    ]},
+
+  { id:'hospitalized', cond:(s)=>healthLevel(s.sta,s.maxSta)===0 && s.years>=2, title:'過労で入院',
+    text:'無理がたたり、ついに倒れて入院することになった。',
+    choices:[
+      {label:'これを機に生活を立て直す', flags:['gym'], eff:{dSta:20,dMaxSta:6,dMen:5,money:-200000}, log:'健康の大切さを骨身に染みた。'},
+      {label:'おとなしく療養する', eff:{dSta:25,dMen:8,money:-150000}, log:'しっかり体を回復させた。'},
+      {label:'病室でも仕事をする', flags:['workaholic'], eff:{dWp:2,dSta:8,dMen:-6}, log:'病床でも働く始末…。'},
+      {label:'退院後すぐ無理をする', eff:{dSta:6,dMaxSta:-6}, log:'懲りずに無茶を繰り返した。'},
+    ]},
+  { id:'checkup_E', cond:(s)=>s.years>=5, title:'健康診断でE判定',
+    text:'健康診断で、いくつもの項目に赤信号が灯った。',
+    choices:[
+      {label:'本気で生活改善に取り組む', flags:['healthDiet'], eff:{dMaxSta:10,dSta:5,money:-100000}, log:'体質改善に成功した。'},
+      {label:'再検査をきちんと受ける', eff:{dSta:8,money:-80000}, log:'大事には至らず安心した。'},
+      {label:'サプリと運動で対処', eff:{dMaxSta:5,dSta:-2}, log:'できることから始めた。'},
+      {label:'忙しさを理由に放置', eff:{dMaxSta:-6,dWp:1}, log:'体を蝕みながら働いた…。'},
+    ]},
+  { id:'quit_smoking', cond:(s)=>s.years>=3, title:'禁煙・禁酒チャレンジ',
+    text:'体のために、悪い習慣を断つ決意をした。',
+    choices:[
+      {label:'意志を貫いて成功する', eff:{dMaxSta:8,dMaxMen:4,dMen:-3}, log:'克服し、体が軽くなった。'},
+      {label:'徐々に減らしていく', eff:{dMaxSta:4,dSta:3}, log:'無理なく続けた。'},
+      {label:'ストレスで逆効果', eff:{dMen:-5}, log:'我慢が裏目に出た。'},
+      {label:'結局やめられない', eff:{dMen:3,dMaxSta:-2}, log:'誘惑には勝てなかった。'},
+    ]},
+  { id:'sauna', cond:(s)=>s.years>=4, title:'サウナにハマる',
+    text:'同僚に誘われて行ったサウナで「ととのう」体験をした。',
+    choices:[
+      {label:'整い習慣でメンタル安定', flags:['sauna'], eff:{dMaxMen:10,dMen:6,money:-50000}, log:'心身がリセットされる習慣を得た。'},
+      {label:'たまの贅沢として楽しむ', eff:{dMen:8,dSta:4,money:-30000}, log:'良い気分転換になった。'},
+      {label:'サ活仲間と交流', flags:['hasPeers'], eff:{dMen:6}, log:'新しい仲間ができた。'},
+      {label:'長湯でのぼせる', eff:{dSta:-4,dMen:3}, log:'やりすぎてぐったり。'},
+    ]},
+  { id:'backpain', cond:(s)=>s.years>=6, title:'腰痛持ち',
+    text:'長年のデスクワークで、慢性的な腰痛に悩まされている。',
+    choices:[
+      {label:'良い椅子と環境に投資', eff:{dMaxSta:6,dSta:5,money:-150000}, log:'作業環境が劇的に改善した。'},
+      {label:'整体とストレッチを習慣に', eff:{dSta:8,money:-80000}, log:'体が楽になった。'},
+      {label:'コルセットで凌ぐ', eff:{dSta:3,money:-20000}, log:'だましだまし働いた。'},
+      {label:'我慢して悪化させる', eff:{dMaxSta:-5,dMen:-3}, log:'悪化させてしまった。'},
+    ]},
+  { id:'metabo', cond:(s)=>s.years>=5, title:'メタボの警告',
+    text:'不規則な生活がたたり、体型に変化が。お腹周りが気になる。',
+    choices:[
+      {label:'ダイエットを成功させる', flags:['fitnessFan'], eff:{dMaxSta:8,dSta:3}, log:'引き締まった体を取り戻した。'},
+      {label:'食事管理アプリを使う', eff:{dMaxSta:4,dMen:2}, log:'数字で管理し始めた。'},
+      {label:'通勤で歩く距離を増やす', eff:{dSta:4,dMaxSta:3}, log:'地道に体を動かした。'},
+      {label:'気にしないことにする', eff:{dMen:3,dMaxSta:-3}, log:'現実から目を背けた。'},
+    ]},
+  { id:'recovery_disease', cond:(s)=>s.years>=8, title:'大病からの生還',
+    text:'思いがけない大病に見舞われたが、なんとか乗り越えた。',
+    choices:[
+      {label:'命の有り難みを噛みしめる', eff:{dMaxMen:14,dMen:10,money:-300000}, log:'人生観が変わり、心が強くなった。'},
+      {label:'働き方を根本から見直す', eff:{dMaxSta:8,dMaxMen:6,dWp:-1}, log:'無理をしない生き方に転換した。'},
+      {label:'家族の支えに感謝する', eff:{dMen:12}, log:'周りの大切さを知った。'},
+      {label:'復帰を焦ってまた無理', eff:{dSta:-8,dWp:2}, log:'懲りずに走り出した。'},
+    ]},
+
+  { id:'inheritance', cond:(s)=>s.years>=7, title:'遺産相続',
+    text:'遠い親族から、思いがけない遺産を相続することになった。',
+    choices:[
+      {label:'堅実に運用・貯蓄する', eff:{money:3000000,dMen:4}, log:'まとまった資産を得た。'},
+      {label:'自己投資と経験に使う', eff:{money:1000000,dWp:3,dMaxMen:4}, log:'自分磨きに投資した。'},
+      {label:'家族のために使う', eff:{money:1500000,dMen:8}, log:'家族で分かち合った。'},
+      {label:'相続争いに巻き込まれる', eff:{money:1500000,dMen:-8}, log:'お金が人間関係を歪めた…。'},
+    ]},
+  { id:'realestate', cond:(s)=>s.money>=5000000, title:'不動産投資の話',
+    text:'まとまった資金を元手に、不動産投資を勧められた。',
+    choices:[
+      {label:'勉強して堅実に投資', flags:['investor'], eff:{money:1500000,dMen:-3}, log:'家賃収入の柱を作った。'},
+      {label:'リスクを抑え少額から', eff:{money:500000}, log:'手堅く始めた。'},
+      {label:'プロに任せて分散投資', eff:{money:800000,dMen:2}, log:'おまかせで増やした。'},
+      {label:'高値掴みで失敗', eff:{money:-1000000,dMen:-5}, log:'相場は甘くなかった…。'},
+    ]},
+  { id:'scam', cond:(s)=>s.money>=5000000, title:'うまい話',
+    text:'「絶対に儲かる」という投資話を持ちかけられた。',
+    choices:[
+      {label:'怪しいと見抜き断る', eff:{dMaxMen:6,dMen:3}, log:'冷静な判断で身を守った。'},
+      {label:'少額だけ様子見', eff:{money:-200000,dMen:-2}, log:'痛い授業料になった。'},
+      {label:'専門家に相談する', eff:{dMen:4}, log:'相談して事なきを得た。'},
+      {label:'欲に目がくらむ', eff:{money:-1500000,dMen:-8}, log:'まんまと騙された…。'},
+    ]},
+  { id:'fire_idea', cond:(s)=>s.years>=6, title:'FIREという生き方',
+    text:'「経済的自立・早期リタイア」という考え方に出会った。',
+    choices:[
+      {label:'倹約と投資を徹底する', flags:['fireMinded'], eff:{money:600000,dMen:-2}, log:'自由を目指して舵を切った。'},
+      {label:'働き方を見直す契機に', eff:{dMaxMen:8,dWp:-1}, log:'人生の優先順位を整理した。'},
+      {label:'今の生活も大事にする', eff:{dMen:5}, log:'バランスを取った。'},
+      {label:'節約しすぎて窮屈に', eff:{money:300000,dMen:-5}, log:'切り詰めすぎて疲れた。'},
+    ]},
+  { id:'friend_loan', cond:(s)=>s.money>=5000000, title:'友人の借金頼み',
+    text:'親しい友人が、お金を貸してほしいと頭を下げてきた。',
+    choices:[
+      {label:'援助して友情を取る', eff:{money:-500000,dMen:5}, log:'友を助けた。'},
+      {label:'返済計画を立てて貸す', eff:{money:-300000,dMen:2}, log:'けじめをつけて援助した。'},
+      {label:'心苦しいが断る', eff:{dMen:-4}, log:'関係に少し溝が…。'},
+      {label:'お金で友情を失う', eff:{money:-500000,dMen:-6}, log:'貸したお金は返ってこなかった…。'},
+    ]},
+  { id:'tax_refund', cond:(s)=>s.years>=4, title:'確定申告の季節',
+    text:'年に一度の確定申告。手間だが、やり方次第で得もする。',
+    choices:[
+      {label:'控除を駆使して節税', flags:['investor'], eff:{money:300000,dSta:-2}, log:'しっかり還付を受けた。'},
+      {label:'ふるさと納税を活用', eff:{money:100000,dMen:3}, log:'返礼品も楽しんだ。'},
+      {label:'専門家に任せる', eff:{money:50000}, log:'プロに任せて安心した。'},
+      {label:'面倒で適当に済ます', eff:{dMen:-2}, log:'損をしたかもしれない。'},
+    ]},
+  { id:'luxury_car', cond:(s)=>s.money>=5000000, title:'高級車の誘惑',
+    text:'ずっと憧れていた高級車。今なら手が届く。',
+    choices:[
+      {label:'思い切って購入する', eff:{money:-2000000,dMen:12}, log:'夢を叶え、心が満たされた。'},
+      {label:'手頃な車で満足する', eff:{money:-500000,dMen:6}, log:'身の丈に合った買い物。'},
+      {label:'カーシェアで我慢', eff:{money:-50000,dMen:2}, log:'賢く割り切った。'},
+      {label:'貯金を優先する', eff:{dMen:-2,money:100000}, log:'欲を抑えて将来に備えた。'},
+    ]},
+  { id:'retirement_worry', cond:(s)=>s.years>=8, title:'老後資金の不安',
+    text:'ふと将来を考え、老後の資金に不安を覚えた。',
+    choices:[
+      {label:'資産形成を本格化する', flags:['investor'], eff:{money:500000,dMen:3}, log:'長期の備えを始めた。'},
+      {label:'保険と年金を見直す', eff:{money:200000,dMen:4}, log:'将来設計を整えた。'},
+      {label:'今を楽しむと割り切る', eff:{dMen:6,money:-100000}, log:'今この瞬間を大事にした。'},
+      {label:'不安に押しつぶされる', eff:{dMen:-6}, log:'考えすぎて気が滅入った。'},
+    ]},
+  { id:'education_cost', cond:(s)=>s.children>=1 && s.years>=8, title:'のしかかる教育費',
+    text:'子供の成長とともに、教育費の負担が重くのしかかる。',
+    choices:[
+      {label:'昇給を目指して奮起する', eff:{dWp:4,dSta:-6,money:200000}, log:'家族のために力をつけた。'},
+      {label:'学資保険で計画的に', eff:{money:-200000,dMen:3}, log:'堅実に備えた。'},
+      {label:'副業で稼ぎを増やす', eff:{money:400000,dSta:-8,dMen:-4}, log:'身を削って稼いだ。'},
+      {label:'家計のやりくりに苦労', eff:{dMen:-5}, log:'家計簿とにらめっこの日々。'},
+    ]},
+
+  { id:'network_pays', cond:(s)=>s.flags.networker && s.years>=3, title:'人脈が活きるとき',
+    text:'かつて築いた人脈が、思わぬ形で仕事につながった。',
+    choices:[
+      {label:'紹介を活かして大きな成果', eff:{dWp:4,money:300000,dMen:4}, log:'人脈が大きな実りをもたらした。'},
+      {label:'恩を返して信頼を深める', eff:{dMaxMen:8,dMen:4}, log:'ギブの精神で絆を強めた。'},
+      {label:'さらに人脈を広げる', flags:['networker'], eff:{dMen:6,dSta:-3}, log:'輪がさらに広がった。'},
+      {label:'付き合いに追われる', eff:{dSta:-4,dMen:-2}, log:'顔の広さも善し悪しだ。'},
+    ]},
+  { id:'peers_bond', cond:(s)=>s.flags.hasPeers && s.years>=4, title:'同期との絆',
+    text:'苦楽を共にした同期たちと、久々に集まることになった。',
+    choices:[
+      {label:'語り合い英気を養う', eff:{dMaxMen:8,dMen:10}, log:'かけがえのない仲間に救われた。'},
+      {label:'互いの仕事を刺激にする', eff:{dWp:3,dMen:4}, log:'良い刺激をもらった。'},
+      {label:'転職情報を交換する', eff:{dWp:2,money:100000}, log:'有益な話が聞けた。'},
+      {label:'差を感じて落ち込む', eff:{dMen:-4,dWp:1}, log:'比べて少し凹んだ。'},
+    ]},
+  { id:'rival_reconcile', cond:(s)=>s.flags.rival && s.years>=6, title:'好敵手との和解',
+    text:'長年競い合ってきたライバルと、ふとした機会に打ち解けた。',
+    choices:[
+      {label:'最高の相棒として手を組む', eff:{dWp:5,dMaxMen:8,dMen:6}, log:'好敵手が無二の戦友になった。'},
+      {label:'互いを認め高め合う', eff:{dWp:4,dMen:4}, log:'切磋琢磨の関係に昇華した。'},
+      {label:'良き相談相手になる', eff:{dMen:8}, log:'弱音を吐ける相手ができた。'},
+      {label:'まだ少し意地を張る', eff:{dWp:2,dMen:-2}, log:'素直になりきれなかった。'},
+    ]},
+  { id:'junior_independent', cond:(s)=>s.flags.teacher && s.years>=6, title:'教え子の独立',
+    text:'手塩にかけて育てた後輩が、独立すると報告に来た。',
+    choices:[
+      {label:'笑顔で送り出す', eff:{dMaxMen:10,dMen:8}, log:'巣立ちを誇らしく見送った。'},
+      {label:'仕事を回し合う関係に', eff:{dWp:2,money:200000}, log:'ビジネスパートナーになった。'},
+      {label:'自分も刺激を受ける', eff:{dWp:3,dMen:2}, log:'負けじと奮起した。'},
+      {label:'戦力流出に頭を抱える', eff:{dMen:-4,dWp:1}, log:'現場の穴埋めに苦労した。'},
+    ]},
+  { id:'peer_became_boss', cond:(s)=>s.years>=7, title:'同期が上司に',
+    text:'かつての同期が、あなたの上司になった。',
+    choices:[
+      {label:'素直に支え、力を貸す', eff:{dMaxMen:8,dMen:4}, log:'器の大きさを示した。'},
+      {label:'対等な相談役を務める', eff:{dWp:3,dMen:2}, log:'良きパートナーになった。'},
+      {label:'発奮材料にする', eff:{dWp:4,dMen:-2}, log:'追い越す気概で働いた。'},
+      {label:'複雑な感情を抱える', eff:{dMen:-5}, log:'素直になれなかった。'},
+    ]},
+  { id:'retiree_handover', cond:(s)=>s.years>=5, title:'退職者の引き継ぎ',
+    text:'ベテラン社員が退職し、その膨大な業務を引き継ぐことに。',
+    choices:[
+      {label:'貪欲に知識を吸収する', eff:{dWp:5,dSta:-6,dMen:-4}, log:'貴重なノウハウを継承した。'},
+      {label:'文書化して整理する', eff:{dWp:3,dMaxMen:4}, log:'属人化を解消した。'},
+      {label:'必要な分だけ引き継ぐ', eff:{dWp:2}, log:'要領よくこなした。'},
+      {label:'業務過多でパンクしかける', eff:{dSta:-8,dMen:-6}, log:'一気に背負い込んで潰れかけた。'},
+    ]},
+  { id:'subordinate_burnout', cond:(s)=>(s.flags.manager || s.flags.leader), title:'部下のメンタル不調',
+    text:'あなたの部下が、心を病んで休職寸前になっている。',
+    choices:[
+      {label:'親身に寄り添い支える', eff:{dMaxMen:10,dMen:-3,dSta:-3}, log:'部下を救い、信頼を得た。'},
+      {label:'業務量を調整してやる', eff:{dWp:-1,dMen:4}, log:'環境を整えてやった。'},
+      {label:'人事や産業医につなぐ', eff:{dMen:2,dWp:1}, log:'適切な支援につないだ。'},
+      {label:'自分の余裕もなく見過ごす', eff:{dMen:-7}, log:'守れなかった後悔が残った…。'},
+    ]},
+  { id:'alumni', cond:(s)=>s.years>=5, title:'同窓会',
+    text:'学生時代の同窓会の案内が届いた。',
+    choices:[
+      {label:'旧友と旧交を温める', eff:{dMen:10,dSta:-2}, log:'懐かしい時間に元気をもらった。'},
+      {label:'人脈づくりの場にする', flags:['networker'], eff:{dWp:2,dMen:4}, log:'思わぬ縁がつながった。'},
+      {label:'近況報告に見栄を張る', eff:{dMen:2,money:-30000}, log:'少し背伸びをした。'},
+      {label:'比較して気疲れする', eff:{dMen:-4}, log:'他人と比べて疲れた。'},
+    ]},
+
+  { id:'moving', cond:(s)=>s.years>=3, title:'引っ越し',
+    text:'今の住まいに不満が出てきた。引っ越しを考える。',
+    choices:[
+      {label:'職住近接で通勤を楽に', eff:{dMaxSta:6,dSta:5,money:-200000}, log:'通勤が楽になり、時間が増えた。'},
+      {label:'広い部屋で心にゆとり', eff:{dMaxMen:6,dMen:5,money:-300000}, log:'暮らしが快適になった。'},
+      {label:'家賃を下げて貯金優先', eff:{money:200000,dMen:-2}, log:'倹約を選んだ。'},
+      {label:'引っ越しの労力に疲弊', eff:{dSta:-8,money:-150000}, log:'引っ越しは重労働だった。'},
+    ]},
+  { id:'pet', cond:(s)=>s.years>=4, title:'ペットを飼う',
+    text:'ふとした縁で、ペットを飼うかどうか迷っている。',
+    choices:[
+      {label:'家族として迎え入れる', flags:['pet'], eff:{dMaxMen:10,dMen:8,money:-100000}, log:'癒やしの存在が増えた。'},
+      {label:'責任を考えて見送る', eff:{dMen:-2}, log:'今は環境が整わない。'},
+      {label:'保護動物を引き取る', flags:['pet'], eff:{dMaxMen:8,dMen:6,money:-50000}, log:'救った命に癒やされた。'},
+      {label:'世話の大変さに直面', eff:{dSta:-4,dMen:5}, log:'可愛いが手はかかる。'},
+    ]},
+  { id:'hobby_sidejob', cond:(s)=>s.years>=3, title:'趣味が高じて',
+    text:'打ち込んでいる趣味が、お金になりそうな気配を見せ始めた。',
+    choices:[
+      {label:'副業として育てる', eff:{money:300000,dSta:-5,dMen:3}, log:'好きを仕事につなげた。'},
+      {label:'あくまで趣味として楽しむ', eff:{dMen:10}, log:'純粋に楽しんだ。'},
+      {label:'発信して仲間を増やす', flags:['hasPeers'], eff:{dMen:6,dWp:1}, log:'同好の士とつながった。'},
+      {label:'本業との両立に悩む', eff:{dMen:-3,dWp:1}, log:'時間の使い方に苦労した。'},
+    ]},
+  { id:'yakudoshi', cond:(s)=>s.years>=8, title:'厄年',
+    text:'今年は厄年だという。なんとなく気が重い。',
+    choices:[
+      {label:'厄払いに行き気持ちを整える', eff:{dMaxMen:6,dMen:6,money:-30000}, log:'気持ちがすっきりした。'},
+      {label:'健康診断を念入りに受ける', eff:{dMaxSta:5,money:-50000}, log:'体を労わる機会にした。'},
+      {label:'気にせず普段通り過ごす', eff:{dMen:3}, log:'迷信に振り回されなかった。'},
+      {label:'なんとなく不調が続く', eff:{dSta:-4,dMen:-3}, log:'厄年を意識して気が滅入った。'},
+    ]},
+  { id:'crossroad', cond:(s)=>s.years>=15, title:'人生の岐路',
+    text:'40歳が近づき、これまでの人生とこれからを、深く見つめ直す。',
+    choices:[
+      {label:'これまでの自分を誇る', eff:{dMaxMen:12,dMen:10}, log:'歩んできた道に自信を持てた。'},
+      {label:'最後まで走り抜く決意', eff:{dWp:5,dMen:-2}, log:'ゴールへ向けて気を引き締めた。'},
+      {label:'大切なものを再確認する', eff:{dMen:10,dMaxMen:6}, log:'本当に大事なものが見えた。'},
+      {label:'後悔と向き合う', eff:{dMen:-4,dMaxMen:8}, log:'痛みも含めて受け入れた。'},
     ]},
 ];
 
-// 在庫が尽きたとき用の小イベント(繰り返し可)。効果は控えめ。
 const FILLERS = [
   { id:'_overtime', title:'続く残業', text:'なんとなく残業続きの日々。',
     choices:[
@@ -545,24 +1183,227 @@ const FILLERS = [
     ]},
 ];
 
+/* ===================== 生成イベント（2000・状態で出し分け） =====================
+   体力/メンタルの3段階・恋人/結婚/子供の有無・勤続年数・過去の選択(フラグ)を
+   条件にした2000個のイベントを、テーマ×トピック×キャリア段階から決定論的に生成する。
+   選択は「今の状態に最も合うイベント(条件の多いもの)」が優先される。 */
+function needCond(need){
+  return function(s){
+    if(need.sta!==undefined && healthLevel(s.sta,s.maxSta)!==need.sta) return false;
+    if(need.men!==undefined && healthLevel(s.men,s.maxMen)!==need.men) return false;
+    if(need.rel==='rel'){ if(s.relationship==='single') return false; }
+    else if(need.rel && s.relationship!==need.rel) return false;
+    if(need.kids && s.children<1) return false;
+    if(need.minYears!==undefined && s.years<need.minYears) return false;
+    if(need.money==='high' && s.money<5000000) return false;
+    if(need.money==='low' && s.money>=1500000) return false;
+    if(need.flag && !s.flags[need.flag]) return false;
+    if(need.noflag && s.flags[need.noflag]) return false;
+    return true;
+  };
+}
+function ch(label,eff,log){ return {label:label, eff:eff, log:log}; }
+function buildEvents(){
+  const ERA=['駆け出しの頃','中堅になった今','ベテランとして'];
+  const yrs=[0,3,8];
+  const fams=[
+   /* 0 仕事トラブル(勤続段階で変化) */
+   { topics:['仕様変更の嵐','本番環境の障害','顧客の無茶な要求','レビュー指摘の山','固まらない要件','落ち続けるテスト','他チームの遅延','急な仕様追加','リリース直前のバグ','レガシーコードの解読','炎上案件の応援要請','甘かった見積もり','多すぎる並行タスク','深夜のアラート対応','顧客デモの準備','障害の原因究明','深刻な性能問題','移行作業のトラブル','理不尽なクレーム','存在しないドキュメント'],
+     build(t,c){const T=c%3;return{need:{minYears:yrs[T]},title:'案件の壁：'+t,
+       text:ERA[T]+'、「'+t+'」に直面した。どう動く？',choices:[
+       ch('気合いで乗り切る',{dWp:1+T,dSta:-(5+T*2),dMen:-(3+T)},'力を尽くして対応した。'),
+       ch('定時で切り上げる',{dMen:5},'無理せず切り上げた。'),
+       ch('同僚と協力する',{dMen:4,dWp:1},'チームで乗り越えた。'),
+       ch('残業で稼ぐ覚悟で粘る',{money:60000*(T+1),dSta:-(6+T*2)},'残業で稼いだが疲れた。')]};}},
+   /* 1 体力が低いとき */
+   { topics:['抜けない疲れ','慢性的な肩こり','寝ても残る眠気','階段での息切れ','長引く風邪','ひどい眼精疲労','悪化する腰痛','出ない食欲','続く頭痛','重だるい体'],
+     build(t,c){const T=c%3;return{need:{sta:0},title:'体の悲鳴：'+t,
+       text:'「'+t+'」。体が限界を訴えている。',choices:[
+       ch('思い切って休む',{dSta:12+T*2},'しっかり休んで回復した。'),
+       ch('栄養ドリンクで誤魔化す',{dSta:5,money:-20000,dMen:-2},'一時しのぎした。'),
+       ch('マッサージに行く',{dSta:10,money:-150000},'体がほぐれた。'),
+       ch('無理して働く',{dWp:1,dSta:-8,dMen:-3},'体に鞭打って働いた。')]};}},
+   /* 2 体力が高いとき */
+   { topics:['妙な好調','有り余る活力','軽い体','苦じゃない早起き','久々の絶好調','みなぎる気力','冴える頭','弾む足取り'],
+     build(t,c){const T=c%3;return{need:{sta:2},title:'絶好調：'+t,
+       text:'「'+t+'」を感じる。この勢いをどう活かす？',choices:[
+       ch('仕事に全力投球',{dWp:2+T,dSta:-6},'勢いで成果を上げた。'),
+       ch('体を鍛えておく',{dMaxSta:4,dSta:-4},'体力の最大値が上がった。'),
+       ch('周りを助ける',{dMen:6,dWp:1},'感謝されて気分も上々。'),
+       ch('思い切り遊ぶ',{dMen:8,money:-50000},'リフレッシュした。')]};}},
+   /* 3 メンタルが低いとき */
+   { topics:['出ないやる気','辛い朝','些細なことへの苛立ち','涙もろさ','将来への不安','仕事への恐怖','人を避けたい気分','眠れない夜'],
+     build(t,c){const T=c%3;return{need:{men:0},title:'心の不調：'+t,
+       text:'「'+t+'」に苛まれている。',choices:[
+       ch('しっかり休養する',{dMen:12+T*2},'心が落ち着いた。'),
+       ch('カウンセリングを受ける',{dMen:10,dMaxMen:3,money:-120000},'専門家に救われた。'),
+       ch('趣味で発散する',{dMen:9,dSta:-2},'気が晴れた。'),
+       ch('我慢して働き続ける',{dWp:1,dMen:-8},'無理を重ねた。')]};}},
+   /* 4 メンタルが高いとき */
+   { topics:['前向きな気持ち','挑戦したい衝動','人への優しさ','湧き上がる感謝','満ちる自信','穏やかな心'],
+     build(t,c){const T=c%3;return{need:{men:2},title:'心の充実：'+t,
+       text:'「'+t+'」に満ちている。',choices:[
+       ch('新しい挑戦をする',{dWp:2+T,dMen:-4},'果敢に挑んだ。'),
+       ch('周囲に感謝を伝える',{dMen:6},'温かい気持ちが広がった。'),
+       ch('後輩を励ます',{dMen:5,dWp:1},'頼られて充実した。'),
+       ch('堅実に貯金に励む',{money:80000},'将来に備えた。')]};}},
+   /* 5 お金(資産状況で変化) */
+   { topics:['臨時ボーナスの使い道','投資の勧誘','ふるさと納税','保険の見直し','家賃の更新','欲しいガジェット','友人へのご祝儀','奨学金の返済','相場の変動','副収入の話'],
+     build(t,c){const hi=c%2===0;return{need:hi?{money:'high'}:{money:'low'},title:'お金の話：'+t,
+       text:(hi?'懐に余裕がある中で':'懐が寂しい中で')+'「'+t+'」に向き合う。',choices:[
+       ch('堅実に投資する',{money:hi?400000:120000},'資産が少し増えた。'),
+       ch('自分にご褒美',{money:-(hi?300000:80000),dMen:8},'心が満たされた。'),
+       ch('ひたすら節約',{money:hi?100000:60000,dMen:-3},'我慢して貯めた。'),
+       ch('スキルに自己投資',{money:-100000,dWp:2},'学びに使った。')]};}},
+   /* 6 同僚・社内(過去の選択でフラグ付与) */
+   { topics:['後輩の指導','同僚の退職','上司の異動','飲み会の誘い','チームのいざこざ','他部署との会議','新人の歓迎','先輩の相談ごと','社内の派閥','根回しの政治'],
+     build(t,c){const T=c%3;return{need:{minYears:yrs[T]},title:'社内のこと：'+t,
+       text:ERA[T]+'、「'+t+'」に関わることになった。',choices:[
+       {label:'飲みニケーションで絆を作る',flags:['drinker'],eff:{dMen:6,dSta:-4,money:-30000},log:'飲み仲間ができた。'},
+       {label:'技術で信頼を勝ち取る',flags:['techGuru'],eff:{dWp:2,dMen:-2},log:'頼られる存在になった。'},
+       ch('波風立てず距離を置く',{dMen:3},'そつなくこなした。'),
+       ch('真正面から向き合う',{dMen:-3,dWp:1},'骨が折れたが筋を通した。')]};}},
+   /* 7 独身(出会い・恋人ができることも) */
+   { topics:['気になる人との出会い','友人からの紹介','学生時代の再会','婚活パーティー','カフェでの偶然','趣味のサークル','アプリでのマッチング','職場の素敵な人'],
+     build(t,c){const T=c%3;return{need:{rel:'single',minYears:Math.min(yrs[T],2)},title:'出会い：'+t,
+       text:'「'+t+'」。心が少し動いた。',choices:[
+       ch('勇気を出してアプローチ',{rel:'girlfriend',dMen:6},'恋人ができた！💗'),
+       ch('友達として仲良くする',{dMen:5},'良い友人ができた。'),
+       ch('仕事を理由に踏み込まない',{dWp:2,dMen:-4},'恋より仕事を選んだ。'),
+       ch('今はそっとしておく',{dMen:2},'静かに過ごした。')]};}},
+   /* 8 恋人がいるとき */
+   { topics:['記念日の計画','些細な喧嘩','相手の誕生日','二人の小旅行','手料理の振る舞い','将来の話','相手の友人との顔合わせ','すれ違いの悩み'],
+     build(t,c){return{need:{rel:'girlfriend'},title:'恋人と：'+t,
+       text:'恋人との「'+t+'」。どう向き合う？',choices:[
+       ch('全力で大切にする',{dMen:10,dMaxMen:3,money:-100000},'絆が深まった。'),
+       ch('ささやかに気持ちを示す',{dMen:6,money:-30000},'喜んでもらえた。'),
+       ch('仕事を優先してしまう',{dWp:2,dMen:-8},'相手を寂しがらせた…。'),
+       ch('自然体で過ごす',{dMen:4},'穏やかな時間。')]};}},
+   /* 9 既婚 */
+   { topics:['家事の分担','義実家への帰省','家計の相談','結婚記念日','休日の過ごし方','マイホームの夢','配偶者の昇進','二人の将来設計'],
+     build(t,c){return{need:{rel:'married'},title:'家庭で：'+t,
+       text:'配偶者との「'+t+'」。',choices:[
+       ch('家庭を最優先にする',{dMen:10,dMaxMen:3,dSta:-3},'家庭が温かくなった。'),
+       ch('話し合って歩み寄る',{dMen:7},'理解が深まった。'),
+       ch('仕事にかまけてしまう',{dWp:2,dMen:-8},'家庭が少し冷えた…。'),
+       ch('協力してお金を貯める',{money:150000,dMen:2},'将来に備えた。')]};}},
+   /* 10 子供がいるとき */
+   { topics:['子供の発熱','授業参観','反抗期','習い事の送迎','子供の進学','家族旅行','子供の誕生日','育児の悩み'],
+     build(t,c){return{need:{rel:'married',kids:true},title:'子育て：'+t,
+       text:'「'+t+'」。親としてどうする？',choices:[
+       ch('仕事を調整して向き合う',{dMen:11,dMaxMen:3,dSta:-5},'かけがえのない時間。'),
+       ch('できる範囲で関わる',{dMen:6},'なんとか間に合った。'),
+       ch('配偶者に任せて働く',{dWp:2,dMen:-6},'罪悪感が残った…。'),
+       ch('教育費のため奮起する',{money:120000,dSta:-4},'将来のため踏ん張った。')]};}},
+   /* 11 健康(過去の選択でフラグ) */
+   { topics:['人間ドックの結果','歯の治療','ぎっくり腰','花粉症の季節','禁酒の決意','ダイエット','睡眠の改善','運動不足'],
+     build(t,c){const T=c%3;return{need:{minYears:yrs[T]},title:'健康：'+t,
+       text:'「'+t+'」。体と向き合う機会だ。',choices:[
+       {label:'運動を習慣にする',flags:['fitnessFan'],eff:{dMaxSta:5,dSta:-3},log:'健康志向になった。'},
+       ch('食生活を見直す',{dMaxSta:3,dMaxMen:2,money:-30000},'体が整った。'),
+       ch('まず一度しっかり休む',{dSta:12},'回復に努めた。'),
+       ch('気にせず働く',{dWp:1,dSta:-6},'健康より仕事を取った。')]};}},
+   /* 12 キャリア・成長 */
+   { topics:['新技術の勉強','社内勉強会','資格の更新','OSSへの貢献','技術ブログ執筆','メンター制度','異動の打診','スキルの棚卸し'],
+     build(t,c){const T=c%3;return{need:{minYears:yrs[T]},title:'成長：'+t,
+       text:ERA[T]+'、「'+t+'」に取り組む。',choices:[
+       ch('本気で打ち込む',{dWp:3+T,dSta:-5,dMen:-3},'実力が伸びた。'),
+       ch('無理なく続ける',{dWp:2,dMen:-2},'着実に力をつけた。'),
+       ch('情報収集だけする',{dWp:1,dMen:3},'視野が広がった。'),
+       ch('今は見送る',{dMen:3},'無理はしなかった。')]};}},
+   /* 13 日常(条件なし・小ネタ) */
+   { topics:['通勤電車のトラブル','ランチの選択','天気の良い週末','近所付き合い','ネット通販の誘惑','推し活','季節の行事','休日の昼寝','大掃除','カフェ巡り'],
+     build(t,c){return{need:{},title:'日常：'+t,
+       text:'「'+t+'」。ささやかな選択。',choices:[
+       ch('体を休める',{dSta:6},'のんびりした。'),
+       ch('気晴らしする',{dMen:6,money:-20000},'気分転換できた。'),
+       ch('少し勉強する',{dWp:1,dMen:-1},'コツコツ進めた。'),
+       ch('副業で小銭を稼ぐ',{money:50000,dSta:-3},'臨時収入を得た。')]};}},
+   /* 14 過去に「飲み仲間」を選んだ人向けチェーン */
+   { topics:['飲み仲間との再会','上司との酒の席','部署の打ち上げ','常連の店での一杯','旧友との痛飲'],
+     build(t,c){return{need:{flag:'drinker'},title:'酒の縁：'+t,
+       text:'飲み仲間との縁で「'+t+'」に誘われた。',choices:[
+       ch('とことん付き合う',{dMen:8,dSta:-8,money:-40000},'絆は深まったが二日酔い…。'),
+       ch('ほどほどに楽しむ',{dMen:6,dSta:-3,money:-20000},'良い時間だった。'),
+       ch('人脈づくりに徹する',{dWp:2,dMen:2,money:-30000},'仕事の縁につながった。'),
+       ch('今日は断る',{dSta:5},'体を労わった。')]};}},
+   /* 15 過去に「運動」を選んだ人向けチェーン */
+   { topics:['仲間とのランニング','登山の誘い','フットサル大会','早朝のジム','サイクリング'],
+     build(t,c){return{need:{flag:'fitnessFan'},title:'健康の縁：'+t,
+       text:'運動仲間と「'+t+'」へ。',choices:[
+       ch('本気で取り組む',{dMaxSta:6,dSta:-5,dMen:6},'心身ともに鍛えられた。'),
+       ch('楽しく汗を流す',{dSta:4,dMen:7},'いい気分転換。'),
+       ch('仲間と交流を深める',{dMen:6,dWp:1},'人の輪が広がった。'),
+       ch('今日は見送る',{dSta:6},'休養を優先した。')]};}},
+  ];
+  const E=[]; let i=0;
+  while(E.length < 2000){
+    const f=fams[i % fams.length];
+    const k=Math.floor(i / fams.length);
+    const topic=f.topics[k % f.topics.length];
+    const cyc=Math.floor(k / f.topics.length);
+    const ev=f.build(topic, cyc, k);
+    ev.id='g'+i;
+    ev.cond=needCond(ev.need||{});
+    ev.spec=Object.keys(ev.need||{}).length;
+    E.push(ev);
+    i++;
+  }
+  return E;
+}
+const GENERATED = buildEvents();
+// 選択プール: キュレーション(重要な分岐/レア能力)は最優先(spec=100)、生成イベントは条件の多さ順
+const POOL = EVENTS.map(function(e){ e.spec = 100; return e; }).concat(GENERATED);
+
 /* ===================== STATE ===================== */
 let S = null;
 
-function startGame(){
-  S = {
+function newState(){
+  return {
     age: CONFIG.startAge, quarter: 0, years: 0,
     maxSta: CONFIG.startStamina, sta: CONFIG.startStamina,
     maxMen: CONFIG.startMental, men: CONFIG.startMental,
     workPower: CONFIG.startWorkPower, money: CONFIG.startMoney,
+    companyCash: CONFIG.companyCashStart,
     projIndex: 0, project: makeOption(0, 0),
-    relationship: 'single', children: 0,
-    consecFails: 0, usedEvents: new Set(), flags: {},
+    relationship: 'single', children: 0, relStrain: 0,
+    usedEvents: new Set(), flags: {},
+    abilities: { phoenix:false, genius:false, buyout:false, zen:false, ironbody:false, charisma:false },
+    phoenixUsed: false, president: false,
     options: null, pendingEvent: null, projectEnded: null, over: false,
   };
-  // 最初のプロジェクトは選ばせず固定(新人研修案件)
+}
+
+function goIntro(){
   document.getElementById('screen-title').classList.add('hidden');
+  const intro = document.getElementById('screen-intro');
+  intro.classList.remove('hidden');
+  const box = document.getElementById('intro-choices');
+  box.innerHTML = '';
+  GREETINGS.forEach((g,i)=>{
+    const b = document.createElement('button');
+    b.className = '';
+    b.style.cssText = 'background:var(--panel2);border:1px solid var(--line);color:var(--txt);text-align:left;';
+    b.textContent = g.label;
+    b.onclick = ()=> startGame(i);
+    box.appendChild(b);
+  });
+}
+
+function startGame(greetIdx){
+  S = newState();
+  const g = GREETINGS[greetIdx];
+  const m = g.mod;
+  if(m.maxSta) S.maxSta += m.maxSta;
+  if(m.maxMen) S.maxMen += m.maxMen;
+  if(m.wp)     S.workPower = Math.max(1, S.workPower + m.wp);
+  if(m.money)  S.money += m.money;
+  S.sta = S.maxSta; S.men = S.maxMen;
+
+  document.getElementById('screen-intro').classList.add('hidden');
   document.getElementById('screen-game').classList.remove('hidden');
-  log('入社しました。まずは研修案件からスタートです。', 'ok');
+  log('入社しました。「'+g.label+'」'+g.log, 'ok');
+  log('最初の案件「'+S.project.name+'」が割り当てられた。'+S.project.brief, 'ev');
   showPlay();
   render();
 }
@@ -576,18 +1417,26 @@ function quarterPreview(hours, weekendDays){
   const kousu = workDays * hours * wp;
   const intensity = Math.pow(hours / 8, 1.5);
   const staDrain = workDays * intensity * proj.staminaWeight * CONFIG.baseDrain;
-  const menDrain = workDays * intensity * proj.mentalWeight  * CONFIG.baseDrain;
-  let recovery = restDays * CONFIG.restRate;
+  let menDrain = workDays * intensity * proj.mentalWeight  * CONFIG.baseDrain;
+  // 《天才》: 仕事力が高いのに簡単な案件だと退屈で心がすり減る
+  let boredom = 0;
+  if(S.abilities.genius && wp >= CONFIG.geniusWpThreshold && proj.reqMult <= 1.0){
+    boredom = workDays * CONFIG.geniusBoredomPerDay;
+    menDrain += boredom;
+  }
+  if(S.abilities.zen) menDrain *= 0.8;                 // 《禅の境地》: メンタル消耗が減る
+  let recovery = restDays * CONFIG.restRate * (S.abilities.ironbody ? 1.25 : 1); // 《鉄の肉体》: 回復増
   let menSupport = 0;
   if(S.relationship === 'married') menSupport += CONFIG.marriedBonus;
   else if(S.relationship === 'girlfriend') menSupport += CONFIG.gfBonus;
   menSupport += S.children * CONFIG.childBonus;
-  const money = Math.round(manHours * proj.pay * (0.6 + wp * 0.02) * CONFIG.moneyRate);
+  let pay = proj.pay * (S.president ? 1.3 : 1.0);
+  const money = Math.round(manHours * pay * (0.6 + wp * 0.02) * CONFIG.moneyRate);
   return {
     kousu: Math.round(kousu),
     staDelta: Math.round(recovery - staDrain),
     menDelta: Math.round(recovery - menDrain + menSupport),
-    money,
+    money, boredom,
   };
 }
 
@@ -599,7 +1448,7 @@ function updatePreview(){
   const p = quarterPreview(hours, wknd);
   const proj = S.project;
   const projectedPct = (proj.accumulated + p.kousu) / proj.required * 100;
-  let approx = Math.round(projectedPct / 10) * 10;          // 10%刻みの概算
+  let approx = Math.round(projectedPct / 10) * 10;
   let pctText = approx >= 100 ? '約100%（超過分は他PJのヘルプに）' : ('約' + approx + '%');
   let html = '';
   html += '<span class="chip">予想進捗：' + pctText + '</span>';
@@ -609,6 +1458,36 @@ function updatePreview(){
   document.getElementById('preview').innerHTML = html;
 }
 
+/* ===================== お金で自己投資 ===================== */
+function careCost(c){ return S.abilities.charisma ? Math.round(c.cost * 0.6) : c.cost; } // 《人望》割引
+function renderCare(){
+  const box = document.getElementById('care');
+  box.innerHTML = '';
+  for(const key of ['massage','trip','gym','clinic']){
+    const c = CONFIG.care[key];
+    const cost = careCost(c);
+    const b = document.createElement('button');
+    let eff = c.sta? '体力↑' : c.men? 'メンタル↑' : c.maxSta? '体力上限↑' : 'メンタル上限↑';
+    b.innerHTML = c.label + '<br><span class="sub">' + man(cost) + ' / ' + eff + '</span>';
+    b.disabled = S.money < cost;
+    b.onclick = ()=> buyCare(key);
+    box.appendChild(b);
+  }
+}
+function buyCare(key){
+  const c = CONFIG.care[key];
+  const cost = careCost(c);
+  if(S.money < cost) return;
+  S.money -= cost;
+  if(c.sta)    S.sta = clamp(S.sta + c.sta, 0, S.maxSta);
+  if(c.men)    S.men = clamp(S.men + c.men, 0, S.maxMen);
+  if(c.maxSta){ S.maxSta += c.maxSta; S.sta += c.maxSta; }
+  if(c.maxMen){ S.maxMen += c.maxMen; S.men += c.maxMen; }
+  log('💴 '+c.label+'にお金を使った（'+man(cost)+'）', 'ok');
+  render();
+}
+
+/* ===================== WORK ===================== */
 function work(){
   if(S.over) return;
   const hours = +document.getElementById('hours').value;
@@ -629,8 +1508,18 @@ function work(){
 
   log('第'+S.quarter+'四半期：'+hours+'時間/日・休日'+wknd+'日勤務（収入 '+man(p.money)+'）');
 
-  if(S.sta <= 0){ return gameOver('過労死','💀',
-    '体力が尽き、あなたは帰らぬ人となった。働きすぎだったのだ。仕事ができないなんて、悲しい。'); }
+  // 過労死判定（不死鳥なら一度だけ復活）
+  if(S.sta <= 0){
+    if(S.abilities.phoenix && !S.phoenixUsed){
+      S.phoenixUsed = true;
+      S.sta = Math.round(S.maxSta * 0.5);
+      S.men = Math.max(S.men, Math.round(S.maxMen * 0.3));
+      log('🔥 過労死……かと思いきや、《不死鳥》の力で灰の中から蘇った！', 'rare');
+    } else {
+      return gameOver('過労死','💀',
+        '体力が尽き、あなたは帰らぬ人となった。働きすぎだったのだ。仕事ができないなんて、悲しい。');
+    }
+  }
   if(S.men <= 0){ return gameOver('心が折れた','🫥',
     'メンタルが限界を超え、あなたは出社できなくなった。長い休職の末、静かに会社を去った。'); }
 
@@ -643,15 +1532,15 @@ function work(){
     if(S.over) return;
   }
 
-  // イベントを決定（このタイミングの状態で抽選。重複なし＋分岐）
+  // 関係が安定していれば相手の不満(strain)は和らぐ
+  if(S.relationship !== 'single' && S.men >= CONFIG.crisisMental + 18 && S.relStrain > 0){
+    S.relStrain -= 1;
+  }
+
   S.pendingEvent = pickEvent();
 
-  // 画面遷移：完了演出 →(2択選択)→ イベント → 結果 → 次の四半期
-  if(S.projectEnded){
-    showComplete();
-  } else {
-    showEvent();
-  }
+  if(S.projectEnded){ showComplete(); }
+  else { showEvent(); }
   render();
 }
 
@@ -660,113 +1549,84 @@ function resolveSuccess(){
   const gain = 1 + Math.floor(proj.length/2) + Math.floor(proj.index/16) + (proj.wpBonus||0);
   S.workPower += gain;
   S.men = clamp(S.men + CONFIG.successMental, 0, S.maxMen);
-  S.consecFails = 0;
+  const revenue = Math.round(proj.contract * CONFIG.cashWinRate);
+  S.companyCash += revenue;
   const overflow = proj.accumulated - proj.required;
-  S.projectEnded = { success:true, name:proj.name, gain, overflow, earned:proj.earned };
-  log('🎉「'+proj.name+'」完遂！仕事力 +'+gain, 'ok');
+  S.projectEnded = { success:true, name:proj.name, gain, overflow, earned:proj.earned, revenue };
+  log('🎉「'+proj.name+'」完遂！仕事力 +'+gain+'（会社に利益 '+man(revenue)+'）', 'ok');
 }
 
 function resolveFail(){
   const proj = S.project;
   S.men = clamp(S.men - CONFIG.failMental, 0, S.maxMen);
-  S.consecFails += 1;
-  S.projectEnded = { success:false, name:proj.name, fails:S.consecFails, earned:proj.earned };
-  log('💥「'+proj.name+'」は納期に間に合わず失敗…（連続失敗 '+S.consecFails+'回）', 'bad');
+  const loss = Math.round(proj.contract * CONFIG.cashLossRate);
+  S.companyCash -= loss;
+  S.projectEnded = { success:false, name:proj.name, earned:proj.earned, loss };
+  log('💥「'+proj.name+'」失敗…会社のキャッシュが '+man(loss)+' 減った', 'bad');
   if(S.men <= 0){ gameOver('心が折れた','🫥','失敗の重圧でメンタルが限界に達し、あなたは会社を去った。'); return; }
-  if(S.consecFails >= CONFIG.bankruptcyFails){
-    gameOver('会社倒産','🏚️',
-      'プロジェクトの連続失敗により、会社は倒産してしまった。あなたは職を失った。仕事ができないなんて、悲しい。');
+  if(S.companyCash <= 0){
+    // 倒産。ただし《買収の野心》＋資金があれば社長就任
+    if(S.abilities.buyout && !S.president && S.money >= CONFIG.buyoutCost){
+      S.money -= CONFIG.buyoutCost;
+      S.companyCash = CONFIG.buyoutRecap;
+      S.president = true;
+      S.projectEnded.buyout = true;
+      log('🏛️ 倒産寸前の会社を私財('+man(CONFIG.buyoutCost)+')で買収し、あなたは社長に就任した！', 'rare');
+    } else {
+      gameOver('会社倒産','🏚️',
+        '会社のキャッシュが尽き、倒産してしまった。あなたは職を失った。仕事ができないなんて、悲しい。');
+    }
   }
 }
 
-/* ===================== EVENT SELECTION ===================== */
+/* ===================== EVENTS ===================== */
 function pickEvent(){
-  // 働きすぎによる別れ(決定論的): 恋人/配偶者がいてメンタルが低いと別れ
-  if((S.relationship === 'girlfriend' || S.relationship === 'married') && S.men < CONFIG.breakupMental){
-    return breakupEvent();
+  // 恋愛の危機: メンタル低下で関係悪化。選択で回避できるが strain が限界に達すると別れ
+  if(S.relationship === 'girlfriend' || S.relationship === 'married'){
+    if(S.men < CONFIG.crisisMental){
+      if(S.relStrain >= CONFIG.maxStrain) return breakupEvent();
+      return crisisEvent();
+    }
   }
-  for(const e of EVENTS){
-    if(!S.usedEvents.has(e.id) && e.cond(S)) return e;
+  // 条件を満たす未使用イベントのうち、今の状態に最も合う(条件の多い=specの高い)ものを選ぶ
+  let best=null, bestSpec=-1;
+  for(let idx=0; idx<POOL.length; idx++){
+    const e = POOL[idx];
+    if(S.usedEvents.has(e.id)) continue;
+    if(!e.cond(S)) continue;
+    if(e.spec > bestSpec){ best = e; bestSpec = e.spec; }
   }
-  // ユニークイベント在庫切れ → フィラー(四半期で巡回し変化をつける)
-  return FILLERS[S.quarter % FILLERS.length];
+  return best || FILLERS[S.quarter % FILLERS.length];
+}
+
+function crisisEvent(){
+  const isMarried = S.relationship === 'married';
+  const who = isMarried ? '配偶者' : '恋人';
+  return {
+    id:'_crisis', title: (isMarried?'夫婦の危機':'恋人との危機'),
+    text: '働きすぎですれ違いが続き、'+who+'が不満をこぼした。今ならまだ、関係は取り戻せる。あなたは——',
+    choices:[
+      {label:'仕事を休んで旅行に連れて行く', resetStrain:true, eff:{dMen:18,dSta:5,money:-500000,dMaxMen:4}, log:'二人の時間を取り戻し、絆が深まった。'},
+      {label:'高級レストランで埋め合わせる', resetStrain:true, eff:{dMen:12,money:-250000}, log:who+'の機嫌が直った。'},
+      {label:'口先だけで謝る', strain:1, eff:{dMen:4}, log:'その場はしのいだが、根本は変わっていない…。'},
+      {label:'仕事を優先し、後で埋め合わせると言う', strain:2, eff:{dWp:3,dMen:-4}, log:'また仕事を選んだ。'+who+'の我慢は限界に近い…。'},
+    ],
+  };
 }
 
 function breakupEvent(){
   const isMarried = S.relationship === 'married';
   const who = isMarried ? '配偶者' : '恋人';
   return {
-    id:'_breakup',
-    title: isMarried ? '離婚の危機' : '別れ話',
-    text: '働きすぎですれ違いが続いた。'+who+'が「もう限界」と切り出した。あなたは——',
+    id:'_breakup', title: isMarried ? '離婚' : '別れ',
+    text: who+'の我慢は限界を超えてしまった。「もう、無理」——引き止める言葉も、もう響かない。',
     choices:[
-      {label:'仕事は減らせないと正直に話す', eff:{rel:'breakup',dMen:-5}, log:who+'と別れた。仕事を選んだのだ。💔'},
-      {label:'謝るが、また残業してしまう', eff:{rel:'breakup',dMen:-8}, log:'謝っても行動は変わらず、別れに至った。💔'},
+      {label:'静かに受け入れる', eff:{rel:'breakup',dMen:-5}, log:who+'と別れた。仕事に費やした日々の代償だ。💔'},
       {label:'仕事に没頭して紛らわす', eff:{rel:'breakup',dWp:3,dMen:-10}, log:who+'と別れ、仕事に逃げた。💔'},
-      {label:'これを機に働き方を見直すと誓う', flags:['mindful'], eff:{rel:'breakup',dMaxMen:6,dMen:-3}, log:who+'とは別れたが、教訓を得た。💔'},
+      {label:'これを教訓に生き方を見直す', flags:[], eff:{rel:'breakup',dMaxMen:6,dMen:-3}, log:who+'とは別れたが、教訓を得た。💔'},
+      {label:'しばらく一人を楽しむと決める', eff:{rel:'breakup',dMen:2}, log:who+'と別れ、自由な時間を取り戻した。💔'},
     ],
   };
-}
-
-/* ===================== SCREENS ===================== */
-function hideAllPhases(){
-  ['phase-play','phase-complete','phase-select','phase-event','phase-evresult']
-    .forEach(id=>document.getElementById(id).classList.add('hidden'));
-}
-function showPhase(id){ hideAllPhases(); document.getElementById(id).classList.remove('hidden'); }
-
-function showPlay(){ showPhase('phase-play'); updatePreview(); }
-
-function showComplete(){
-  const r = S.projectEnded;
-  showPhase('phase-complete');
-  const head = document.getElementById('comp-head');
-  const body = document.getElementById('comp-body');
-  if(r.success){
-    head.innerHTML = '🎉 プロジェクト完了！';
-    let html = '<p><b>「'+r.name+'」</b>を無事に完遂した。</p>';
-    html += '<p class="res-line pos">仕事力が +'+r.gain+' 上がった。</p>';
-    html += '<p class="res-line">このプロジェクトでの収入：'+man(r.earned)+'</p>';
-    if(r.overflow > 0){
-      const pct = Math.round((r.overflow / S.project.required) * 100 / 10) * 10;
-      html += '<p class="res-line pos">進捗100%を超過（約+'+pct+'%）！余剰の工数は他チームのヘルプに回り、その分も収入になった。</p>';
-    }
-    body.innerHTML = html;
-  } else {
-    head.innerHTML = '💥 プロジェクト失敗…';
-    let html = '<p><b>「'+r.name+'」</b>は納期に間に合わなかった。</p>';
-    html += '<p class="res-line neg">連続失敗：'+r.fails+'回（2回でクビ→会社倒産）。</p>';
-    html += '<p class="res-line">このプロジェクトでの収入：'+man(r.earned)+'</p>';
-    body.innerHTML = html;
-  }
-}
-
-function goToSelect(){
-  // 次の2案件を生成
-  S.projIndex += 1;
-  S.options = [ makeOption(S.projIndex, 0), makeOption(S.projIndex, 1) ];
-  showPhase('phase-select');
-  for(let i=0;i<2;i++){
-    const o = S.options[i];
-    const el = document.getElementById(i===0 ? 'opt-A' : 'opt-B');
-    el.innerHTML =
-      '<h3>'+(i===0?'A. ':'B. ')+o.name+'</h3>'
-      + '<div>'
-      + '<span class="tag">'+o.kind+'</span>'
-      + '<span class="tag '+(o.staminaWeight>=o.mentalWeight?'sta':'men')+'">'+o.type+'</span>'
-      + '<span class="tag pay">報酬 '+payRank(o.pay)+'</span>'
-      + '</div>'
-      + '<div class="sub" style="margin-top:6px;">難易度 '+o.difficulty+'｜納期 '+o.length+'期</div>';
-  }
-}
-
-function chooseProject(i){
-  S.project = S.options[i];
-  S.options = null;
-  log('「'+S.project.name+'」に着手した。', 'ev');
-  // 続けてイベントへ
-  showEvent();
-  render();
 }
 
 function showEvent(){
@@ -778,7 +1638,7 @@ function showEvent(){
   box.innerHTML = '';
   ev.choices.forEach((c, i)=>{
     const b = document.createElement('button');
-    b.textContent = c.label;   // 効果は表示しない
+    b.textContent = c.label;
     b.onclick = ()=> chooseEvent(i);
     box.appendChild(b);
   });
@@ -788,7 +1648,7 @@ function chooseEvent(i){
   const ev = S.pendingEvent;
   const c = ev.choices[i];
   const eff = c.eff || {};
-  const before = { sta:S.sta, men:S.men, maxSta:S.maxSta, maxMen:S.maxMen, wp:S.workPower, money:S.money, rel:S.relationship, kids:S.children };
+  const before = { sta:S.sta, men:S.men, maxSta:S.maxSta, maxMen:S.maxMen, wp:S.workPower, money:S.money };
 
   if(eff.dMaxSta) S.maxSta += eff.dMaxSta;
   if(eff.dMaxMen) S.maxMen += eff.dMaxMen;
@@ -799,36 +1659,37 @@ function chooseEvent(i){
   if(eff.rel === 'girlfriend') S.relationship = 'girlfriend';
   if(eff.rel === 'marry')      S.relationship = 'married';
   if(eff.rel === 'child'){ S.relationship = 'married'; S.children += 1; }
-  if(eff.rel === 'breakup')    S.relationship = 'single';
+  if(eff.rel === 'breakup'){ S.relationship = 'single'; S.relStrain = 0; }
   if(c.flags) c.flags.forEach(f=> S.flags[f] = true);
+  // 恋愛危機の strain 処理
+  if(c.resetStrain) S.relStrain = 0;
+  if(c.strain) S.relStrain += c.strain;
+  // レア能力付与
+  let granted = null;
+  if(c.grant){ S.abilities[c.grant] = true; granted = c.grant; }
 
   S.sta = clamp(S.sta, 0, S.maxSta);
   S.men = clamp(S.men, 0, S.maxMen);
-  // ユニークイベントのみ消費（フィラー/別れは繰り返し可）
   if(!ev.id.startsWith('_')) S.usedEvents.add(ev.id);
-  log('【'+ev.title+'】'+c.log, 'ev');
+  log('【'+ev.title+'】'+c.log, ev.rare||c.grant ? 'rare' : 'ev');
 
-  // 結果表示
-  showResult(ev, c, eff, before);
+  showResult(ev, c, eff, before, granted);
   render();
 }
 
-function showResult(ev, c, eff, before){
+function showResult(ev, c, eff, before, granted){
   showPhase('phase-evresult');
   document.getElementById('evr-log').textContent = c.log;
   const lines = [];
-  // 体力・メンタルの「現在値」変化は数値を隠し、質的に表現
   const qual = (d, name)=>{
     if(!d) return null;
     const a = Math.abs(d);
     const word = a>=20 ? '大きく' : (a>=8 ? '' : '少し');
     return { txt: name + (d>0 ? 'が'+word+'回復した' : 'が'+word+'減った'), pos: d>0 };
   };
-  const actualSta = S.sta - before.sta, actualMen = S.men - before.men;
   let q;
   if(eff.dSta && (q=qual(eff.dSta,'体力'))) lines.push(q);
   if(eff.dMen && (q=qual(eff.dMen,'メンタル'))) lines.push(q);
-  // 最大値・仕事力・お金は具体的に表示
   if(eff.dMaxSta) lines.push({txt:'体力の最大値 '+sign(eff.dMaxSta), pos:eff.dMaxSta>0});
   if(eff.dMaxMen) lines.push({txt:'メンタルの最大値 '+sign(eff.dMaxMen), pos:eff.dMaxMen>0});
   if(eff.dWp)     lines.push({txt:'仕事力 '+sign(S.workPower-before.wp), pos:(S.workPower-before.wp)>0});
@@ -837,9 +1698,12 @@ function showResult(ev, c, eff, before){
   if(eff.rel==='marry')      lines.push({txt:'結婚した 💍', pos:true});
   if(eff.rel==='child')      lines.push({txt:'子供が生まれた 👶', pos:true});
   if(eff.rel==='breakup')    lines.push({txt:'パートナーと別れた 💔', pos:false});
+  const abilityName = { phoenix:'🔥 不死鳥', genius:'🧠 天才', buyout:'🏛️ 買収の野心',
+    zen:'🧘 禅の境地', ironbody:'💪 鉄の肉体', charisma:'🤝 人望' };
+  if(granted) lines.push({txt:'レア能力『'+abilityName[granted]+'』に目覚めた！', rare:true});
   const box = document.getElementById('evr-effects');
   box.innerHTML = lines.length
-    ? lines.map(l=>'<p class="res-line '+(l.pos?'pos':'neg')+'">'+l.txt+'</p>').join('')
+    ? lines.map(l=>'<p class="res-line '+(l.rare?'rare':l.pos?'pos':'neg')+'">'+l.txt+'</p>').join('')
     : '<p class="res-line">特に大きな変化はなかった。</p>';
 }
 
@@ -852,24 +1716,88 @@ function afterQuarter(){
   render();
 }
 
+/* ===================== SCREENS ===================== */
+function hideAllPhases(){
+  ['phase-play','phase-complete','phase-select','phase-event','phase-evresult']
+    .forEach(id=>document.getElementById(id).classList.add('hidden'));
+}
+function showPhase(id){ hideAllPhases(); document.getElementById(id).classList.remove('hidden'); }
+function showPlay(){ showPhase('phase-play'); updatePreview(); renderCare(); }
+
+function showComplete(){
+  const r = S.projectEnded;
+  showPhase('phase-complete');
+  const head = document.getElementById('comp-head');
+  const body = document.getElementById('comp-body');
+  if(r.success){
+    head.innerHTML = '🎉 プロジェクト完了！';
+    let html = '<p><b>「'+r.name+'」</b>を無事に完遂した。</p>';
+    html += '<p class="res-line pos">仕事力が +'+r.gain+' 上がった。</p>';
+    html += '<p class="res-line">あなたの収入：'+man(r.earned)+'</p>';
+    html += '<p class="res-line pos">会社の利益：'+man(r.revenue)+'</p>';
+    if(r.overflow > 0){
+      const pct = Math.round((r.overflow / S.project.required) * 100 / 10) * 10;
+      html += '<p class="res-line pos">進捗100%超過（約+'+pct+'%）！余剰工数は他チームのヘルプに回り収入になった。</p>';
+    }
+    body.innerHTML = html;
+  } else {
+    head.innerHTML = '💥 プロジェクト失敗…';
+    let html = '<p><b>「'+r.name+'」</b>は納期に間に合わなかった。</p>';
+    html += '<p class="res-line neg">会社のキャッシュが '+man(r.loss)+' 減った。</p>';
+    html += '<p class="res-line">あなたの収入：'+man(r.earned)+'</p>';
+    if(r.buyout) html += '<p class="res-line rare">🏛️ 倒産寸前の会社を買収し、社長に就任した！</p>';
+    body.innerHTML = html;
+  }
+}
+
+function goToSelect(){
+  S.projIndex += 1;
+  S.options = [ makeOption(S.projIndex, 0), makeOption(S.projIndex, 1) ];
+  showPhase('phase-select');
+  for(let i=0;i<2;i++){
+    const o = S.options[i];
+    const el = document.getElementById(i===0 ? 'opt-A' : 'opt-B');
+    el.innerHTML =
+      '<h3>'+(i===0?'A. ':'B. ')+o.name+'</h3>'
+      + '<div class="sub" style="margin-bottom:6px;">'+o.brief+'</div>'
+      + '<div>'
+      + '<span class="tag">'+o.kind+'</span>'
+      + '<span class="tag '+(o.staminaWeight>=o.mentalWeight?'sta':'men')+'">'+o.type+'</span>'
+      + '<span class="tag pay">報酬 '+payRank(o.pay)+'</span>'
+      + '</div>'
+      + '<div class="sub" style="margin-top:6px;">難易度 '+o.difficulty+'｜納期 '+o.length+'期｜受注額 '+man(o.contract)
+      + '（失敗時 会社損失 約'+man(Math.round(o.contract*CONFIG.cashLossRate))+'）</div>';
+  }
+}
+
+function chooseProject(i){
+  S.project = S.options[i];
+  S.options = null;
+  log('「'+S.project.name+'」に着手した。'+S.project.brief, 'ev');
+  showEvent();
+  render();
+}
+
 /* ===================== ENDINGS ===================== */
 function endingByMoney(){
   const m = S.money;
+  const pre = S.president ? 'オーナー社長として、' : '';
+  const survived = S.phoenixUsed ? '一度は過労死の淵から蘇り、' : '';
   if(m >= CONFIG.endRich){
     gameOver('南の島で悠々自適','🏝️👑',
-      '40歳。莫大な貯金を手に、あなたは南の島に豪邸を建てた。'
+      '40歳。'+survived+pre+'莫大な貯金を手に、あなたは南の島に豪邸を建てた。'
       +'もう二度と働く必要はない。プールサイドで、これまでの激闘を懐かしく思い返す。最高の人生だった。');
   } else if(m >= CONFIG.endWealthy){
     gameOver('南の島でのんびり暮らす','🏝️',
-      '40歳。十分な蓄えを得て、あなたは会社を辞め南の島へ。'
+      '40歳。'+survived+pre+'十分な蓄えを得て、あなたは会社を辞め南の島へ。'
       +'波の音を聞きながら、のんびりと第二の人生を楽しむ。よく頑張った。お疲れさまでした。');
   } else if(m >= CONFIG.endNormal){
     gameOver('地方都市で慎ましく','🏡',
-      '40歳。大金持ちにはなれなかったが、あなたは都会を離れ、物価の安い地方都市へ。'
+      '40歳。'+survived+pre+'大金持ちにはなれなかったが、あなたは物価の安い地方都市へ移り住んだ。'
       +'家庭菜園でもしながら、慎ましくも穏やかな暮らしを始めた。これはこれで、悪くない。');
   } else {
     gameOver('まだまだ働く','🧑‍💻',
-      '40歳。貯金は心もとなく、南の島の夢は遠い。'
+      '40歳。'+survived+pre+'貯金は心もとなく、南の島の夢は遠い。'
       +'生活のため、あなたはこれからも働き続ける。デスマーチの日々は、まだ終わらない…。');
   }
 }
@@ -900,23 +1828,40 @@ function render(){
 
   document.getElementById('wp').textContent = S.workPower;
   document.getElementById('money').textContent = man(S.money);
+  const cashEl = document.getElementById('cash');
+  cashEl.textContent = man(S.companyCash);
+  cashEl.style.color = S.companyCash < CONFIG.contractBase ? 'var(--danger)' : 'var(--cash)';
 
   const relMap = {single:'独身', girlfriend:'恋人あり 💗', married:'既婚 💍'};
   let relTxt = relMap[S.relationship];
   if(S.children>0) relTxt += '・子供'+S.children+'人 👶';
+  if(S.president) relTxt = '👔社長 / ' + relTxt;
   document.getElementById('relpill').innerHTML = relTxt;
 
+  // abilities
+  const abEl = document.getElementById('abilities');
+  const abs = [];
+  if(S.abilities.phoenix) abs.push('<span class="tag ability">🔥 不死鳥'+(S.phoenixUsed?'(使用済)':'')+'</span>');
+  if(S.abilities.genius)  abs.push('<span class="tag ability">🧠 天才</span>');
+  if(S.abilities.buyout)  abs.push('<span class="tag ability">🏛️ 買収の野心'+(S.president?'(達成)':'')+'</span>');
+  if(S.abilities.zen)      abs.push('<span class="tag ability">🧘 禅の境地</span>');
+  if(S.abilities.ironbody) abs.push('<span class="tag ability">💪 鉄の肉体</span>');
+  if(S.abilities.charisma) abs.push('<span class="tag ability">🤝 人望</span>');
+  abEl.innerHTML = abs.join(' ');
+
   const warn = document.getElementById('rel-warn');
-  if((S.relationship==='girlfriend'||S.relationship==='married') && healthLevel(S.men,S.maxMen)===0){
+  if(S.relationship!=='single' && S.men < CONFIG.crisisMental + 12){
     warn.classList.remove('hidden');
-    warn.textContent = '⚠ 働きすぎで'+(S.relationship==='married'?'家庭':'恋人との関係')+'がギクシャクしている…（メンタルが低いままだと別れてしまう）';
+    const danger = S.relStrain >= CONFIG.maxStrain - 1;
+    warn.textContent = '⚠ 働きすぎで'+(S.relationship==='married'?'家庭':'恋人との関係')+'がギクシャクしている…'
+      + (danger ? '【相手の我慢は限界寸前！】' : '（メンタルを回復させれば持ち直せる）');
   } else { warn.classList.add('hidden'); }
 
-  // project (進捗は約10%刻み、工数の実数は出さない)
   const proj = S.project;
   document.getElementById('proj-name').textContent = proj.name;
+  document.getElementById('proj-brief').textContent = proj.brief;
   document.getElementById('proj-desc').textContent =
-    '難易度 '+proj.difficulty+'｜'+proj.type+'｜報酬 '+payRank(proj.pay)+'｜納期 '+proj.length+'期';
+    '難易度 '+proj.difficulty+'｜'+proj.type+'｜報酬 '+payRank(proj.pay)+'｜納期 '+proj.length+'期｜受注額 '+man(proj.contract);
   document.getElementById('proj-tags').innerHTML =
     '<span class="tag sta">体力消耗 '+(proj.staminaWeight>=1.2?'大':proj.staminaWeight>=0.95?'中':'小')+'</span>'
     + '<span class="tag men">メンタル消耗 '+(proj.mentalWeight>=1.2?'大':proj.mentalWeight>=0.95?'中':'小')+'</span>';
@@ -927,16 +1872,19 @@ function render(){
   document.getElementById('proj-deadline').textContent =
     '納期まで残り '+remain+'期'+(remain<=1?'（今期で必要工数に届かないと失敗！）':'');
 
-  if(!document.getElementById('phase-play').classList.contains('hidden')) updatePreview();
+  if(!document.getElementById('phase-play').classList.contains('hidden')){ updatePreview(); renderCare(); }
 }
 
 /* ===================== HELPERS ===================== */
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
 function sign(n){ return n>0 ? '+'+n : ''+n; }
 function man(yen){
-  // 万円表示(端数は万未満切り捨て)。1万未満は円表示。
-  if(Math.abs(yen) >= 10000) return Math.round(yen/10000).toLocaleString()+'万円';
-  return Math.round(yen).toLocaleString()+'円';
+  const neg = yen < 0; const a = Math.abs(yen);
+  let s;
+  if(a >= 100000000) s = (a/100000000).toFixed(a%100000000?1:0)+'億円';
+  else if(a >= 10000) s = Math.round(a/10000).toLocaleString()+'万円';
+  else s = Math.round(a).toLocaleString()+'円';
+  return (neg?'-':'')+s;
 }
 function log(msg, cls){
   const el = document.getElementById('log');
@@ -954,12 +1902,19 @@ function gameOver(title, emoji, text){
   document.getElementById('end-title').textContent = title;
   document.getElementById('end-text').textContent = text;
   const relMap = {single:'独身', girlfriend:'恋人あり', married:'既婚'};
+  const ab = [];
+  if(S.abilities.phoenix) ab.push('🔥不死鳥');
+  if(S.abilities.genius) ab.push('🧠天才');
+  if(S.abilities.buyout) ab.push('🏛️買収');
+  if(S.abilities.zen) ab.push('🧘禅');
+  if(S.abilities.ironbody) ab.push('💪鉄の肉体');
+  if(S.abilities.charisma) ab.push('🤝人望');
   document.getElementById('end-stats').innerHTML =
-    '最終年齢 '+Math.floor(S.age)+'歳｜勤続'+S.years+'年<br>'
+    '最終年齢 '+Math.floor(S.age)+'歳｜勤続'+S.years+'年'+(S.president?'｜👔社長':'')+'<br>'
     +'最終貯金 <b style="color:var(--money)">'+man(S.money)+'</b>｜仕事力 '+S.workPower+'<br>'
-    +'体力上限 '+S.maxSta+'｜メンタル上限 '+S.maxMen+'<br>'
-    +'着手プロジェクト '+(S.projIndex+1)+'件｜'+relMap[S.relationship]
-    +(S.children>0?'・子供'+S.children+'人':'');
+    +'体力上限 '+S.maxSta+'｜メンタル上限 '+S.maxMen+'｜会社キャッシュ '+man(S.companyCash)+'<br>'
+    +'着手プロジェクト '+(S.projIndex+1)+'件｜'+relMap[S.relationship]+(S.children>0?'・子供'+S.children+'人':'')
+    +(ab.length?'<br>覚醒した能力：'+ab.join(' '):'');
 }
 </script>
 </body>
