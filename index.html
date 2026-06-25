@@ -8,7 +8,7 @@
   :root{
     --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#2d3543;
     --txt:#e6edf3; --sub:#9aa7b4; --accent:#58a6ff;
-    --sta:#3fb950; --men:#d29922; --wp:#a371f7; --money:#e3b341;
+    --sta:#3fb950; --men:#d29922; --wp:#a371f7; --money:#e3b341; --cash:#2dd4bf;
     --danger:#f85149; --good:#3fb950;
   }
   *{box-sizing:border-box;}
@@ -24,7 +24,6 @@
   .panel{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:12px 0;}
   .row{display:flex; gap:12px; flex-wrap:wrap;}
   .row>*{flex:1; min-width:140px;}
-  /* 3-stage health */
   .seg{display:flex; gap:4px; margin-top:4px;}
   .seg>i{flex:1; height:12px; border-radius:4px; background:#0a0e14; border:1px solid var(--line);}
   .gauge-label{display:flex; justify-content:space-between; font-size:.85rem;}
@@ -33,10 +32,9 @@
   .seg.sta i.on{background:var(--sta); border-color:var(--sta);}
   .seg.men i.on{background:var(--men); border-color:var(--men);}
   .seg.lowfill i.on{background:var(--danger); border-color:var(--danger);}
-  .wpline{font-size:1rem; margin-top:8px;}
-  .wpline b{color:var(--wp); font-size:1.25rem;}
-  .money b{color:var(--money); font-size:1.25rem;}
-  /* controls */
+  .statline{font-size:1rem; margin-top:8px;}
+  .statline b{font-size:1.2rem;}
+  .wp b{color:var(--wp);} .money b{color:var(--money);} .cash b{color:var(--cash);}
   .ctrl{margin:10px 0;}
   .ctrl label{display:flex; justify-content:space-between; font-size:.9rem; margin-bottom:4px;}
   .ctrl .val{color:var(--accent); font-weight:bold;}
@@ -49,13 +47,16 @@
     background:var(--accent); transition:filter .15s; width:100%; margin-top:8px;
   }
   button:hover{filter:brightness(1.1);}
+  button:disabled{opacity:.4; cursor:not-allowed;}
   .choices button, .opt-card{background:var(--panel2); border:1px solid var(--line); color:var(--txt); text-align:left;}
   .choices button{margin-top:8px;}
   .choices button:hover{border-color:var(--accent); filter:none;}
   .opt-card{border-radius:10px; padding:12px; margin-top:10px; cursor:pointer;}
   .opt-card:hover{border-color:var(--accent);}
   .opt-card h3{margin:0 0 6px; font-size:1.02rem;}
-  /* project meter */
+  .care{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;}
+  .care button{width:auto; flex:1; min-width:150px; font-size:.82rem; padding:8px 10px; background:var(--panel2); border:1px solid var(--line); color:var(--txt); margin-top:0;}
+  .care button:hover:not(:disabled){border-color:var(--money); filter:none;}
   .kbar{height:18px; background:#0a0e14; border:1px solid var(--line); border-radius:9px; overflow:hidden; position:relative;}
   .kbar>span{display:block; height:100%; background:linear-gradient(90deg,#1f6feb,#58a6ff); width:0; transition:width .4s;}
   .kbar .txt{position:absolute; inset:0; text-align:center; font-size:.78rem; line-height:18px;}
@@ -63,11 +64,13 @@
   .tag.sta{color:var(--sta); border-color:var(--sta);}
   .tag.men{color:var(--men); border-color:var(--men);}
   .tag.pay{color:var(--money); border-color:var(--money);}
-  .log{font-size:.85rem; max-height:170px; overflow-y:auto;}
+  .tag.ability{color:var(--wp); border-color:var(--wp);}
+  .log{font-size:.85rem; max-height:160px; overflow-y:auto;}
   .log p{margin:.25em 0; padding-left:10px; border-left:2px solid var(--line);}
   .log .ev{border-left-color:var(--wp);}
   .log .ok{border-left-color:var(--good);}
   .log .bad{border-left-color:var(--danger);}
+  .log .rare{border-left-color:#f778ba;}
   .center{text-align:center;}
   .warn{color:var(--men); font-size:.85rem; margin-top:6px;}
   .end-emoji{font-size:3rem; text-align:center; margin:.2em 0;}
@@ -75,10 +78,11 @@
   .meta{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;}
   .pill{background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:2px 12px; font-size:.85rem;}
   .res-line{margin:.2em 0;}
-  .res-line.pos{color:var(--good);} .res-line.neg{color:var(--danger);}
+  .res-line.pos{color:var(--good);} .res-line.neg{color:var(--danger);} .res-line.rare{color:#f778ba; font-weight:bold;}
   table.help{font-size:.83rem; width:100%; border-collapse:collapse;}
   table.help td{padding:2px 6px; border-bottom:1px solid var(--line); vertical-align:top;}
   details{margin-top:8px;} summary{cursor:pointer; color:var(--accent); font-size:.9rem;}
+  .abilities{font-size:.8rem; margin-top:6px;}
 </style>
 </head>
 <body>
@@ -91,25 +95,35 @@
     <div class="panel">
       <p>あなたはストレート大卒、<b>22歳</b>でソフトウェア会社に入社した新入社員。<br>
       四半期ごとに働き方を選び、プロジェクトをこなして<b>仕事力</b>と<b style="color:var(--money)">貯金</b>を増やしていく。</p>
-      <p>だが——働きすぎれば<b style="color:var(--sta)">体力</b>が尽きて<b style="color:var(--danger)">過労死</b>。
+      <p>働きすぎれば<b style="color:var(--sta)">体力</b>が尽きて<b style="color:var(--danger)">過労死</b>。
       心がすり減れば<b style="color:var(--men)">メンタル</b>が折れる。
-      仕事をこなせなければ会社は<b>倒産</b>。<br>
+      プロジェクトに失敗し<b style="color:var(--cash)">会社のキャッシュ</b>が尽きれば<b>倒産</b>。<br>
       恋人や家族との時間も、働きすぎれば失われていく。</p>
-      <p><b>40歳</b>まで生き延びれば引退。そのときの<b style="color:var(--money)">貯金額</b>で、その後の人生が決まる。</p>
-      <p class="sub">この世界に運（ランダム）は存在しない。すべてはあなたの選択で決まる。人生ってそういうものだからね。</p>
+      <p><b>40歳</b>まで生き延びれば引退。そのときの<b style="color:var(--money)">貯金額</b>で人生の結末が決まる。</p>
+      <p class="sub">運（ランダム）は存在しない。すべてはあなたの選択で決まる。人生ってそういうものだからね。</p>
       <details>
         <summary>ルール詳細を見る</summary>
         <table class="help">
-          <tr><td>工数</td><td>(20日＋休日勤務)×3ヶ月×労働時間×仕事力。期限内に必要工数を満たせば成功。100%を超えた分は他チームのヘルプに回り、収入になる。</td></tr>
-          <tr><td>仕事力</td><td>難しいプロジェクトを完遂するほど大きく上がる。簡単な仕事ではあまり上がらない。</td></tr>
-          <tr><td>体力 / メンタル</td><td>長く働くほど減り、休むほど回復する。<b>減り具合は感覚でしか分からない</b>（3段階表示）。プロジェクトにより消耗の傾向が違う。</td></tr>
-          <tr><td>お金</td><td>働いた量×プロジェクトの報酬率で増える。高報酬の案件ほど過酷。</td></tr>
-          <tr><td>プロジェクト完了</td><td>完了後、次の案件を2つから選ぶ。</td></tr>
-          <tr><td>イベント</td><td>毎四半期発生（同じ出来事は二度起きない）。4択で選ぶと結果が判明。<b>過去の選択がその後の出来事を変える</b>。恋人・結婚・出産で人生が分岐。</td></tr>
-          <tr><td>結末</td><td>体力0で過労死／メンタル0で離職／2連続失敗で倒産／40歳到達なら貯金額に応じた4つの結末。</td></tr>
+          <tr><td>工数</td><td>(20日＋休日勤務)×3ヶ月×労働時間×仕事力。期限内に必要工数を満たせば成功。100%超過分は他チームのヘルプに回り収入になる。</td></tr>
+          <tr><td>仕事力</td><td>難しいプロジェクトを完遂するほど大きく上がる。</td></tr>
+          <tr><td>体力 / メンタル</td><td>長く働くほど減り、休むほど回復。<b>減り具合は感覚（3段階）でしか分からない</b>。お金を使えば回復できる。</td></tr>
+          <tr><td>お金</td><td>働いた量×報酬率で増える。回復や自己投資に使える。残せば結末が良くなる。</td></tr>
+          <tr><td>会社キャッシュ</td><td>プロジェクト成功で増え、失敗で減る。<b>受注額が大きい案件ほど失敗時の損失も大きい</b>。0になると倒産。</td></tr>
+          <tr><td>イベント</td><td>毎四半期発生・4択。効果は選択後に判明。過去の選択でその後が分岐。特定の道で<b>レアな才能</b>に目覚めることも。</td></tr>
+          <tr><td>恋愛</td><td>働きすぎると関係が悪化。選択次第で別れは回避できるが、相手の我慢にも限界がある。</td></tr>
         </table>
       </details>
-      <button onclick="startGame()">入社する ▶</button>
+      <button onclick="goIntro()">入社する ▶</button>
+    </div>
+  </div>
+
+  <!-- INTRO: 入社の挨拶 -->
+  <div id="screen-intro" class="hidden">
+    <div class="panel">
+      <h2>🎤 入社式の挨拶</h2>
+      <p>同期が見守る中、あなたは壇上で意気込みを語ることになった。<br>最初のひと言が、あなたという人間を形づくる。</p>
+      <p class="sub">※ 選んだ意気込みによって初期能力が変わります。</p>
+      <div class="choices" id="intro-choices"></div>
     </div>
   </div>
 
@@ -131,15 +145,18 @@
         </div>
       </div>
       <div class="row" style="margin-top:10px;">
-        <div class="wpline">仕事力：<b id="wp"></b></div>
-        <div class="wpline money">貯金：<b id="money"></b></div>
+        <div class="statline wp">仕事力 <b id="wp"></b></div>
+        <div class="statline money">貯金 <b id="money"></b></div>
+        <div class="statline cash">会社 <b id="cash"></b></div>
       </div>
+      <div id="abilities" class="abilities"></div>
       <div id="rel-warn" class="warn hidden"></div>
     </div>
 
     <!-- PLAY -->
     <div id="phase-play" class="panel">
       <h2>📋 進行中：<span id="proj-name"></span></h2>
+      <div class="sub" id="proj-brief" style="margin-bottom:4px;"></div>
       <div class="sub" id="proj-desc"></div>
       <div style="margin:8px 0;"><span id="proj-tags"></span></div>
       <div class="kbar"><span id="proj-bar"></span><div class="txt" id="proj-ktxt"></div></div>
@@ -154,7 +171,10 @@
         <input type="range" id="wknd" min="0" max="4" step="1" value="0" oninput="updatePreview()">
       </div>
       <div class="preview" id="preview"></div>
-      <p class="sub" style="margin-top:6px;">※ 体力・メンタルがどれだけ減るかは、働いてみないと分からない。</p>
+
+      <div class="sub" style="margin-top:12px;">💴 お金で自己投資（働く前に何度でも）</div>
+      <div class="care" id="care"></div>
+
       <button onclick="work()">この四半期を働く ▶</button>
     </div>
 
@@ -168,7 +188,7 @@
     <!-- PROJECT SELECT -->
     <div id="phase-select" class="panel hidden">
       <h2>📝 次に受けるプロジェクトを選ぶ</h2>
-      <p class="sub">2つの案件が提示された。今の体力・メンタルと相談して選ぼう。</p>
+      <p class="sub">2つの案件が提示された。今の体力・メンタル・会社の懐と相談して選ぼう。</p>
       <div id="opt-A" class="opt-card" onclick="chooseProject(0)"></div>
       <div id="opt-B" class="opt-card" onclick="chooseProject(1)"></div>
     </div>
@@ -215,12 +235,40 @@ const CONFIG = {
   startStamina: 100, startMental: 100, startWorkPower: 10, startMoney: 0,
   baseDrain: 0.35, restRate: 1.0,
   marriedBonus: 4, gfBonus: 2, childBonus: 2,
-  successMental: 5, failMental: 10,
-  bankruptcyFails: 2, breakupMental: 25,
+  successMental: 5, failMental: 8,
   moneyRate: 300,
-  // 40歳時の貯金額(円)による4エンディング閾値
+  // 恋愛: crisisMental 未満で「危機」イベント。回避できるが strain が限界(maxStrain)に達すると別れ
+  crisisMental: 32, maxStrain: 3,
+  // 会社キャッシュ
+  companyCashStart: 10000000,
+  contractBase: 2000000, contractGrowth: 0.18,
+  cashWinRate: 0.30, cashLossRate: 0.55,
+  // お金で自己投資(コストと効果)
+  care: {
+    massage: { cost: 300000,  label:'マッサージ・整体',     sta:15 },
+    trip:    { cost: 600000,  label:'旅行でリフレッシュ',   men:20 },
+    gym:     { cost: 1500000, label:'パーソナルジム',       maxSta:8 },
+    clinic:  { cost: 1500000, label:'メンタルクリニック',   maxMen:8 },
+  },
+  // レア能力
+  geniusWpThreshold: 40,       // この仕事力以上で簡単な案件だと天才の退屈ペナルティ
+  geniusBoredomPerDay: 0.22,
+  buyoutCost: 20000000,        // 倒産時、貯金がこれ以上あれば会社を買収して社長就任
+  buyoutRecap: 15000000,
   endRich: 33000000, endWealthy: 22000000, endNormal: 12000000,
 };
+
+/* ===================== 入社の挨拶(初期パラメータ) ===================== */
+const GREETINGS = [
+  { label:'「誰よりも働く覚悟です！」', mod:{wp:4, maxMen:-6},
+    log:'闘志あふれる宣言。仕事力は高いが、無理をしがちで心は脆い。' },
+  { label:'「体力には自信があります！」', mod:{maxSta:25},
+    log:'頼もしい体育会系。体力の最大値が大きく上がった。' },
+  { label:'「メンタルは鋼です！」', mod:{maxMen:25},
+    log:'動じない強い心。メンタルの最大値が大きく上がった。' },
+  { label:'「ワークライフバランスを大事にします」', mod:{maxSta:8, maxMen:10, wp:-1, money:1000000},
+    log:'堅実派。バランス良く、いくらかの蓄えもある。仕事力はやや控えめ。' },
+];
 
 /* ===================== PROJECTS ===================== */
 const PROFILES = [
@@ -244,10 +292,23 @@ function projName(seed){
 }
 function diffStars(index, reqMult){
   let t = Math.floor(index/3) + (reqMult>1.1?1:0) + 1;
-  t = Math.max(1, Math.min(5, t));
-  return '★'.repeat(t);
+  return '★'.repeat(Math.max(1, Math.min(5, t)));
 }
-// index = これまでに着手したプロジェクト数。variant 0=安定案件 / 1=高難度高報酬
+function projBrief(index, variant, prof){
+  if(index === 0) return '新人研修も兼ねた小さな案件。まずはここで仕事の流れを掴もう。';
+  const base = variant === 0
+    ? '比較的落ち着いた案件。無理なく進められそうだ。'
+    : '炎上気味の大型案件。報酬は大きいが、生半可な覚悟では務まらない。';
+  const flavor = {
+    '体力消耗型':'連日の対応で体力をごっそり持っていかれる。',
+    'メンタル消耗型':'仕様変更とクレームの嵐で精神がすり減る。',
+    'バランス型':'体力も気力もまんべんなく削られる。',
+    '激務(肉体)型':'徹夜と泊まり込みが当たり前の現場。',
+    '激務(精神)型':'重圧と責任が常に肩にのしかかる。',
+  }[prof.type];
+  return base + ' ' + flavor;
+}
+// index = これまでに着手した案件数。variant 0=安定案件 / 1=高難度高報酬
 function makeOption(index, variant){
   const expectedWp = CONFIG.startWorkPower + 2 * index;
   const hTarget = Math.min(13, 7 + index * 0.13);
@@ -257,25 +318,24 @@ function makeOption(index, variant){
   if(variant === 0){ pay = 0.90 + (index%2)*0.10; reqMult = 0.90; wpBonus = 0; kind='安定案件'; }
   else            { pay = 1.45 + (index%2)*0.20; reqMult = 1.30; wpBonus = 1; kind='高難度・高報酬'; }
   const required = Math.round(expectedWp * length * 60 * hTarget * reqMult);
-  const nameSeed = index*2 + variant;
+  const contract = Math.round(CONFIG.contractBase * length * pay * (1 + index * CONFIG.contractGrowth));
   return {
-    index, variant, kind, name: projName(nameSeed),
-    length, required, reqMult,
+    index, variant, kind, name: projName(index*2 + variant),
+    length, required, reqMult, contract,
     staminaWeight: prof.s, mentalWeight: prof.m, type: prof.type,
     pay, wpBonus, difficulty: diffStars(index, reqMult),
+    brief: projBrief(index, variant, prof),
     accumulated: 0, quartersElapsed: 0, earned: 0,
   };
 }
 function payRank(pay){ return pay >= 1.3 ? '高' : (pay >= 1.0 ? '標準' : 'やや低'); }
 
 /* ===================== EVENTS ===================== */
-// eff: dMaxSta,dMaxMen,dWp,dSta,dMen,money(円),rel('girlfriend'|'marry'|'child'|'breakup')
-// flags: 選択でtrueにするフラグ名の配列。cond(s) で s.flags を参照して分岐。
 const EVENTS = [
   { id:'welcome', cond:()=>true, title:'新人歓迎会',
     text:'部署の歓迎会。あなたはどう振る舞う？',
     choices:[
-      {label:'先輩に酒を注ぎまくり人脈を広げる', flags:['networker'], eff:{dWp:2,dSta:-5}, log:'多くの先輩と顔見知りになった。人脈ができた。'},
+      {label:'先輩に酒を注ぎまくり人脈を広げる', flags:['networker'], eff:{dWp:2,dSta:-5}, log:'多くの先輩と顔見知りになった。'},
       {label:'隅で同期と語り合う', flags:['hasPeers'], eff:{dMen:8}, log:'同期と意気投合し、心強い仲間ができた。'},
       {label:'酔い潰れるまで飲む', eff:{dSta:-12,dMen:5}, log:'記憶は無いが、楽しかったらしい。'},
       {label:'体調を理由に抜けて勉強する', flags:['studious'], eff:{dWp:3,dMen:-4}, log:'独り黙々と自己研鑽した。'},
@@ -283,7 +343,7 @@ const EVENTS = [
   { id:'checkup', cond:()=>true, title:'入社後の健康診断',
     text:'医者に「働きすぎると危ないですよ」と釘を刺された。',
     choices:[
-      {label:'ジムに通い始める', flags:['gym'], eff:{dMaxSta:15,dSta:-5}, log:'体を鍛え始めた。体力の最大値が上がった！'},
+      {label:'ジムに通い始める', flags:['gym'], eff:{dMaxSta:15,dSta:-5}, log:'体を鍛え始めた。'},
       {label:'食生活を整える', flags:['healthDiet'], eff:{dMaxSta:8,dMaxMen:4}, log:'健康的な生活を心がけた。'},
       {label:'サプリで誤魔化す', eff:{dSta:10}, log:'とりあえず元気が出た気がする。'},
       {label:'気にせず仕事に打ち込む', flags:['reckless'], eff:{dWp:3,dSta:-6}, log:'健康より仕事を選んだ。'},
@@ -292,8 +352,8 @@ const EVENTS = [
     text:'圧倒的な実力を持つ先輩がいる。あなたは——',
     choices:[
       {label:'弟子入りして教えを請う', flags:['mentor'], eff:{dWp:4,dMen:-2}, log:'師匠を得た。多くを学んだ。'},
-      {label:'ライバル視して対抗する', flags:['rival'], eff:{dWp:3,dSta:-6}, log:'打倒すべき相手を見つけ、闘志が湧いた。'},
-      {label:'我が道を行く', flags:['soloPath'], eff:{dMaxMen:6}, log:'他人と比べず、自分のペースを貫くことにした。'},
+      {label:'ライバル視して対抗する', flags:['rival'], eff:{dWp:3,dSta:-6}, log:'打倒すべき相手を見つけた。'},
+      {label:'我が道を行く', flags:['soloPath'], eff:{dMaxMen:6}, log:'自分のペースを貫くことにした。'},
       {label:'特に何も思わない', eff:{dMen:2}, log:'いつも通りの日々。'},
     ]},
   { id:'mentor_promo', cond:(s)=>s.flags.mentor && s.years>=4, title:'師匠の推薦',
@@ -304,34 +364,50 @@ const EVENTS = [
       {label:'荷が重いと辞退する', eff:{dMen:-4}, log:'チャンスを見送った。'},
       {label:'師匠を食事に誘い恩返し', eff:{dMen:8,money:-100000}, log:'師との絆が深まった。'},
     ]},
+  { id:'genius', cond:(s)=>s.workPower>=35 && !s.abilities.genius, title:'天才の片鱗', rare:true,
+    text:'あなたの仕事ぶりに、社内がざわめく。「あいつは天才だ」と。',
+    choices:[
+      {label:'【才能開花】天才であることを受け入れる', flags:[], grant:'genius', eff:{dWp:6}, log:'《天才》に目覚めた！圧倒的な仕事力を得る。だが——簡単な仕事では退屈に苛まれ、心がすり減るようになった。'},
+      {label:'驕らず初心を忘れない', eff:{dMaxMen:10,dWp:2}, log:'謙虚さを保ち、精神的に成熟した。'},
+      {label:'プレッシャーに感じる', eff:{dMen:-6,dWp:1}, log:'期待が重荷になった。'},
+      {label:'実力を隠して平凡に振る舞う', eff:{dMen:4}, log:'目立たぬよう生きることにした。'},
+    ]},
+  { id:'phoenix', cond:(s)=>s.flags.reckless && s.years>=4 && !s.abilities.phoenix, title:'極限の果てに', rare:true,
+    text:'限界を超えて働き続けたある夜、意識が遠のく中で、あなたは奇妙な感覚に包まれた。死の淵で何かが芽生えようとしている。',
+    choices:[
+      {label:'【覚醒】極限を受け入れ、その先へ', flags:[], grant:'phoenix', eff:{dMen:-6,dSta:-6}, log:'《不死鳥》に目覚めた！次に過労死しても、一度だけ灰の中から蘇る。'},
+      {label:'恐怖を感じ、休養を取る', eff:{dSta:18,dMen:10,money:-100000}, log:'我に返り、しっかり休んだ。'},
+      {label:'病院で精密検査を受ける', eff:{dMaxSta:6,money:-150000}, log:'大事には至らず、体を見直した。'},
+      {label:'気のせいだと働き続ける', eff:{dWp:3,dSta:-10}, log:'限界を無視して働いた。'},
+    ]},
+  { id:'ambition', cond:(s)=>s.years>=6 && s.money>=3000000 && !s.abilities.buyout, title:'経営への野心', rare:true,
+    text:'幾多の修羅場をくぐり、あなたはふと思う。「いっそ、自分が会社を動かす側になれば——」',
+    choices:[
+      {label:'【野心】いつか会社を買収すると誓い、経営を学ぶ', flags:[], grant:'buyout', eff:{dWp:2,dMen:-2}, log:'《買収の野心》を得た！会社が倒産寸前でも、貯金があれば買収して社長に成り上がれる。'},
+      {label:'MBA取得を目指す', flags:['studious'], eff:{dWp:5,dSta:-6,money:-500000}, log:'経営知識を体系的に学んだ。'},
+      {label:'今の立場で十分だと考える', eff:{dMen:5}, log:'身の丈に合った生き方を選んだ。'},
+      {label:'投資で資産を増やす', eff:{money:700000,dMen:-2}, log:'運用で資産を増やした。'},
+    ]},
   { id:'rival_showdown', cond:(s)=>s.flags.rival && s.years>=4, title:'ライバルとの一騎打ち',
     text:'例のライバルと、同じプロジェクトのリードを争うことになった。',
     choices:[
-      {label:'寝食を忘れて打ち勝つ', eff:{dWp:8,dSta:-14,dMen:-8,money:600000}, log:'死力を尽くして勝利した。実力が跳ね上がった。'},
-      {label:'正々堂々と競い、結果は時の運', eff:{dWp:4,dMen:-4}, log:'良い勝負だった。互いを認め合った。'},
-      {label:'手を組んで二人で成功させる', flags:['allyRival'], eff:{dWp:5,dMen:6}, log:'ライバルは最高の相棒になった。'},
+      {label:'寝食を忘れて打ち勝つ', eff:{dWp:8,dSta:-14,dMen:-8,money:600000}, log:'死力を尽くして勝利した。'},
+      {label:'正々堂々と競う', eff:{dWp:4,dMen:-4}, log:'良い勝負だった。'},
+      {label:'手を組んで二人で成功させる', eff:{dWp:5,dMen:6}, log:'ライバルは最高の相棒になった。'},
       {label:'勝負から降りる', eff:{dMen:-6}, log:'闘いを避けた。'},
     ]},
   { id:'marathon', cond:(s)=>s.flags.gym && s.years>=3, title:'フルマラソン挑戦',
     text:'ジム仲間にフルマラソンに誘われた。',
     choices:[
-      {label:'本気でトレーニングして完走', eff:{dMaxSta:20,dSta:-8,dMen:8}, log:'見事完走！心肺が鍛えられ、体力の最大値が大きく上がった。'},
+      {label:'本気でトレーニングして完走', eff:{dMaxSta:20,dSta:-8,dMen:8}, log:'見事完走！体力の最大値が大きく上がった。'},
       {label:'ファンランで楽しむ', eff:{dMaxSta:8,dMen:6}, log:'楽しく走り切った。'},
-      {label:'応援に回る', eff:{dMen:5}, log:'仲間を応援して気分転換になった。'},
+      {label:'応援に回る', eff:{dMen:5}, log:'気分転換になった。'},
       {label:'仕事を理由に断る', eff:{dWp:2,dMen:-3}, log:'走るより働くことを選んだ。'},
-    ]},
-  { id:'burnout_warn', cond:(s)=>s.flags.reckless && s.years>=2, title:'体からの警告',
-    text:'健康を顧みず働いてきたツケか、体に異変を感じる。',
-    choices:[
-      {label:'今すぐ生活を改める', flags:['healthDiet'], eff:{dMaxSta:6,dSta:10}, log:'危機感を持って立て直した。'},
-      {label:'人間ドックを受ける', eff:{dSta:6,dMen:-2,money:-80000}, log:'大事には至らず安心した。'},
-      {label:'まだ大丈夫と無視する', eff:{dWp:2,dMaxSta:-8}, log:'無理を重ね、体力の上限がじわりと削れた…。'},
-      {label:'漢方とマッサージに頼る', eff:{dSta:8,money:-50000}, log:'少し楽になった。'},
     ]},
   { id:'goukon', cond:(s)=>s.relationship==='single', title:'合コンのお誘い',
     text:'同期から合コンに誘われた。良い出会いがあるかも？',
     choices:[
-      {label:'積極的にアプローチする', flags:['metAtGoukon'], eff:{rel:'girlfriend',dMen:6}, log:'意気投合し、恋人ができた！💗'},
+      {label:'積極的にアプローチする', eff:{rel:'girlfriend',dMen:6}, log:'意気投合し、恋人ができた！💗'},
       {label:'仕事の話で盛り上がる', eff:{dWp:2}, log:'出会いは無かったが刺激にはなった。'},
       {label:'断って残業する', flags:['workaholic'], eff:{dWp:3,dMen:-5}, log:'出会いより仕事を選んだ。'},
       {label:'家でゆっくり休む', eff:{dSta:12,dMen:4}, log:'しっかり体を休めた。'},
@@ -339,7 +415,7 @@ const EVENTS = [
   { id:'dating_app', cond:(s)=>s.relationship==='single' && s.years>=2, title:'マッチングアプリ',
     text:'友人に勧められ、マッチングアプリを始めてみた。',
     choices:[
-      {label:'真剣に活動して恋人を作る', flags:['metOnline'], eff:{rel:'girlfriend',dMen:5}, log:'素敵な人と出会えた。恋人ができた！💗'},
+      {label:'真剣に活動して恋人を作る', eff:{rel:'girlfriend',dMen:5}, log:'素敵な人と出会えた。恋人ができた！💗'},
       {label:'軽い気持ちで友達を増やす', eff:{dMen:6}, log:'人付き合いが広がった。'},
       {label:'やっぱり性に合わず退会', eff:{dMen:-2}, log:'すぐにやめてしまった。'},
       {label:'課金しすぎて反省', eff:{dMen:3,money:-120000}, log:'出費だけがかさんだ…。'},
@@ -347,7 +423,7 @@ const EVENTS = [
   { id:'date', cond:(s)=>s.relationship==='girlfriend', title:'恋人との記念日',
     text:'付き合って初めての記念日。どう過ごす？',
     choices:[
-      {label:'有給を取って旅行へ', flags:['romantic'], eff:{dMaxMen:10,dMen:10,dSta:5,money:-200000}, log:'最高の思い出。メンタルの最大値が上がった！'},
+      {label:'有給を取って旅行へ', eff:{dMaxMen:10,dMen:10,dSta:5,money:-200000}, log:'最高の思い出。メンタルの最大値が上がった！'},
       {label:'高価なプレゼントを贈る', eff:{dMen:8,money:-150000}, log:'とても喜んでもらえた。'},
       {label:'仕事帰りに少しだけ会う', eff:{dMen:2,dWp:1}, log:'忙しくても会いに行った。'},
       {label:'締切を理由にドタキャン', flags:['workaholic'], eff:{dWp:3,dMen:-12}, log:'関係に亀裂が入った…。'},
@@ -355,8 +431,8 @@ const EVENTS = [
   { id:'propose', cond:(s)=>s.relationship==='girlfriend' && s.years>=3, title:'プロポーズ',
     text:'関係も深まってきた。結婚を考える時期かもしれない。',
     choices:[
-      {label:'海の見えるレストランで', flags:['weddingBeach'], eff:{rel:'marry',dMaxMen:12,dMen:10,money:-300000}, log:'プロポーズ成功！結婚した👰 メンタルの最大値が上がった。'},
-      {label:'思い出の場所でさりげなく', flags:['weddingSimple'], eff:{rel:'marry',dMaxMen:10,dMen:12}, log:'静かに、でも確かに結ばれた👰'},
+      {label:'海の見えるレストランで', flags:['weddingBeach'], eff:{rel:'marry',dMaxMen:12,dMen:10,money:-300000}, log:'プロポーズ成功！結婚した👰'},
+      {label:'思い出の場所でさりげなく', eff:{rel:'marry',dMaxMen:10,dMen:12}, log:'静かに、でも確かに結ばれた👰'},
       {label:'仕事が落ち着いてからにする', flags:['workaholic'], eff:{dWp:3,dMen:-4}, log:'また仕事を優先してしまった。'},
       {label:'まだ踏み切れない', eff:{dMen:-3}, log:'関係はそのまま続いた。'},
     ]},
@@ -366,7 +442,7 @@ const EVENTS = [
       {label:'長期休暇を取り存分に楽しむ', eff:{dSta:20,dMen:20,money:-400000}, log:'夢のような時間。心身が満たされた。'},
       {label:'短く済ませて仕事に戻る', flags:['workaholic'], eff:{dWp:3,dMen:-4}, log:'休みもそこそこに復帰した。'},
       {label:'近場で安く済ませ貯金に回す', eff:{dMen:6,money:200000}, log:'堅実に、でも幸せに過ごした。'},
-      {label:'記念に二人の将来設計を立てる', eff:{dMaxMen:6,dMen:6}, log:'未来への希望が膨らんだ。'},
+      {label:'二人の将来設計を立てる', eff:{dMaxMen:6,dMen:6}, log:'未来への希望が膨らんだ。'},
     ]},
   { id:'child', cond:(s)=>s.relationship==='married', title:'家族計画',
     text:'配偶者と将来について話し合った。',
@@ -387,7 +463,7 @@ const EVENTS = [
   { id:'kids_event', cond:(s)=>s.children>=1, title:'子供の運動会',
     text:'休日に子供の運動会。だが仕事の締め切りも近い。',
     choices:[
-      {label:'仕事を片付けて見に行く', eff:{dMaxMen:10,dMen:12,dSta:-6}, log:'最高の笑顔が見られた。心の支えが増えた。'},
+      {label:'仕事を片付けて見に行く', eff:{dMaxMen:10,dMen:12,dSta:-6}, log:'最高の笑顔が見られた。'},
       {label:'少しだけ顔を出す', eff:{dMen:5}, log:'なんとか駆けつけた。'},
       {label:'配信で見ながら働く', eff:{dWp:1,dMen:-2}, log:'仕事しつつ見届けた。'},
       {label:'締切優先で諦める', flags:['workaholic'], eff:{dWp:3,dMen:-14}, log:'家族をがっかりさせてしまった…。'},
@@ -403,15 +479,15 @@ const EVENTS = [
   { id:'leader', cond:(s)=>s.years>=3, title:'チームリーダー就任',
     text:'マネジメントを任されることになった。',
     choices:[
-      {label:'引き受けて全力で', flags:['leader'], eff:{dWp:7,dSta:-8,dMen:-8,money:400000}, log:'リーダーとして成長し、仕事力が大きく上がった。'},
+      {label:'引き受けて全力で', flags:['leader'], eff:{dWp:7,dSta:-8,dMen:-8,money:400000}, log:'リーダーとして成長した。'},
       {label:'引き受けて部下に任せる', flags:['leader'], eff:{dWp:4,dMen:-2}, log:'うまく権限委譲した。'},
-      {label:'プレイヤーに専念したい', flags:['specialist'], eff:{dWp:3}, log:'技術を極める道を選んだ。'},
+      {label:'プレイヤーに専念したい', eff:{dWp:3}, log:'技術を極める道を選んだ。'},
       {label:'荷が重く悩む', eff:{dMen:-6}, log:'プレッシャーに苦しんだ。'},
     ]},
   { id:'startup', cond:(s)=>s.flags.leader && s.years>=8, title:'独立・起業の誘い',
     text:'仲間から「一緒に会社をやらないか」と誘われた。',
     choices:[
-      {label:'リスクを取って参画', eff:{dWp:8,dSta:-12,dMen:-12,money:1500000}, log:'起業に挑戦。過酷だが実力も報酬も飛躍した。'},
+      {label:'リスクを取って参画', eff:{dWp:8,dSta:-12,dMen:-12,money:1500000}, log:'起業に挑戦。過酷だが報酬も飛躍した。'},
       {label:'副業として関わる', eff:{dWp:4,dSta:-6,money:500000}, log:'本業を続けつつ関わった。'},
       {label:'出資だけして応援', eff:{dMen:3,money:-300000}, log:'資金面で支えることにした。'},
       {label:'安定を選び断る', eff:{dMaxMen:6}, log:'今の生活を大事にした。'},
@@ -435,18 +511,10 @@ const EVENTS = [
   { id:'mentalcare', cond:()=>true, title:'メンタルヘルス研修',
     text:'会社がストレスケア研修を実施した。',
     choices:[
-      {label:'真剣に受けセルフケアを学ぶ', flags:['mindful'], eff:{dMaxMen:14}, log:'メンタルの最大値が上がった！'},
-      {label:'瞑想を習慣にする', flags:['mindful'], eff:{dMaxMen:8,dMen:6}, log:'心が落ち着くようになった。'},
+      {label:'真剣に受けセルフケアを学ぶ', eff:{dMaxMen:14}, log:'メンタルの最大値が上がった！'},
+      {label:'瞑想を習慣にする', eff:{dMaxMen:8,dMen:6}, log:'心が落ち着くようになった。'},
       {label:'良い息抜きと割り切る', eff:{dMen:8,dSta:6}, log:'リフレッシュできた。'},
       {label:'時間の無駄だと内職', flags:['workaholic'], eff:{dWp:2,dMen:-4}, log:'仕事は進んだが疲れた。'},
-    ]},
-  { id:'meditation_retreat', cond:(s)=>s.flags.mindful && s.years>=5, title:'瞑想リトリート',
-    text:'本格的な瞑想合宿の案内が届いた。',
-    choices:[
-      {label:'参加して心を整える', eff:{dMaxMen:14,dMen:10,money:-150000}, log:'雑念が消え、メンタルの最大値が大きく上がった。'},
-      {label:'日帰りで体験する', eff:{dMaxMen:6,dMen:6}, log:'短くも有意義だった。'},
-      {label:'本で独学する', eff:{dMaxMen:4}, log:'自分なりに学んだ。'},
-      {label:'やはり仕事が気になり不参加', flags:['workaholic'], eff:{dWp:2,dMen:-3}, log:'休めない性分だ。'},
     ]},
   { id:'sidejob', cond:(s)=>s.years>=2, title:'副業のお誘い',
     text:'知人から割の良い副業を持ちかけられた。',
@@ -467,18 +535,10 @@ const EVENTS = [
   { id:'conf', cond:(s)=>s.years>=4, title:'技術カンファレンス登壇',
     text:'大きな勉強会で登壇のオファーが来た。',
     choices:[
-      {label:'徹夜で資料を作り込み登壇', flags:['famous'], eff:{dWp:6,dSta:-10,dMen:-4}, log:'登壇は大成功。名が知られた。'},
+      {label:'徹夜で資料を作り込み登壇', eff:{dWp:6,dSta:-10,dMen:-4}, log:'登壇は大成功。名が知られた。'},
       {label:'手堅い内容で無難に', eff:{dWp:3,dMen:-2}, log:'そつなく発表した。'},
       {label:'聴講して刺激を受ける', eff:{dWp:2,dMen:5}, log:'モチベーションが上がった。'},
       {label:'緊張で辞退する', eff:{dMen:-4}, log:'チャンスを逃した。'},
-    ]},
-  { id:'book_offer', cond:(s)=>s.flags.famous && s.years>=6, title:'技術書執筆の依頼',
-    text:'登壇が評判を呼び、出版社から執筆依頼が来た。',
-    choices:[
-      {label:'寝る間を惜しんで書き上げる', eff:{dWp:6,dSta:-12,dMen:-6,money:500000}, log:'著書が出版された！第一人者として認知された。'},
-      {label:'共著で負担を分け合う', eff:{dWp:4,dMen:-2,money:250000}, log:'仲間と良い本を作った。'},
-      {label:'監修だけ引き受ける', eff:{dWp:2,money:150000}, log:'名前を貸す形で関わった。'},
-      {label:'多忙を理由に断る', eff:{dMen:-3}, log:'惜しいが見送った。'},
     ]},
   { id:'vacation', cond:(s)=>s.years>=3, title:'長期休暇のチャンス',
     text:'有給がたまっている。長期休暇を取れそうだ。',
@@ -492,7 +552,7 @@ const EVENTS = [
     text:'同僚に投資を勧められた。貯金をどうする？',
     choices:[
       {label:'インデックス投資で堅実に', eff:{money:600000}, log:'コツコツ運用し、資産が増えた。'},
-      {label:'勉強して個別株に挑戦', flags:['studious'], eff:{dWp:1,money:400000,dMen:-3}, log:'値動きに一喜一憂しつつ利益を得た。'},
+      {label:'勉強して個別株に挑戦', flags:['studious'], eff:{dWp:1,money:400000,dMen:-3}, log:'利益を得た。'},
       {label:'リスクを取らず貯金のまま', eff:{dMen:3}, log:'手堅く現金を守った。'},
       {label:'高配当に全力投資', eff:{money:-200000,dMen:-4}, log:'相場は甘くなく、含み損を抱えた…。'},
     ]},
@@ -501,12 +561,11 @@ const EVENTS = [
     choices:[
       {label:'誇りに思いさらに精進', eff:{dWp:5,dMen:10,money:300000}, log:'自信がつき、報奨金も得た。'},
       {label:'昇給交渉の材料にする', eff:{dWp:3,dMen:6,money:500000}, log:'評価を給与に反映させた。'},
-      {label:'チームの成果と還元', flags:['leader'], eff:{dMaxMen:10}, log:'信頼を得て心が満たされた。'},
+      {label:'チームの成果と還元', eff:{dMaxMen:10}, log:'信頼を得て心が満たされた。'},
       {label:'重圧に感じる', eff:{dMen:-5,dWp:2}, log:'期待が重荷になった。'},
     ]},
 ];
 
-// 在庫が尽きたとき用の小イベント(繰り返し可)。効果は控えめ。
 const FILLERS = [
   { id:'_overtime', title:'続く残業', text:'なんとなく残業続きの日々。',
     choices:[
@@ -548,21 +607,52 @@ const FILLERS = [
 /* ===================== STATE ===================== */
 let S = null;
 
-function startGame(){
-  S = {
+function newState(){
+  return {
     age: CONFIG.startAge, quarter: 0, years: 0,
     maxSta: CONFIG.startStamina, sta: CONFIG.startStamina,
     maxMen: CONFIG.startMental, men: CONFIG.startMental,
     workPower: CONFIG.startWorkPower, money: CONFIG.startMoney,
+    companyCash: CONFIG.companyCashStart,
     projIndex: 0, project: makeOption(0, 0),
-    relationship: 'single', children: 0,
-    consecFails: 0, usedEvents: new Set(), flags: {},
+    relationship: 'single', children: 0, relStrain: 0,
+    usedEvents: new Set(), flags: {},
+    abilities: { phoenix:false, genius:false, buyout:false },
+    phoenixUsed: false, president: false,
     options: null, pendingEvent: null, projectEnded: null, over: false,
   };
-  // 最初のプロジェクトは選ばせず固定(新人研修案件)
+}
+
+function goIntro(){
   document.getElementById('screen-title').classList.add('hidden');
+  const intro = document.getElementById('screen-intro');
+  intro.classList.remove('hidden');
+  const box = document.getElementById('intro-choices');
+  box.innerHTML = '';
+  GREETINGS.forEach((g,i)=>{
+    const b = document.createElement('button');
+    b.className = '';
+    b.style.cssText = 'background:var(--panel2);border:1px solid var(--line);color:var(--txt);text-align:left;';
+    b.textContent = g.label;
+    b.onclick = ()=> startGame(i);
+    box.appendChild(b);
+  });
+}
+
+function startGame(greetIdx){
+  S = newState();
+  const g = GREETINGS[greetIdx];
+  const m = g.mod;
+  if(m.maxSta) S.maxSta += m.maxSta;
+  if(m.maxMen) S.maxMen += m.maxMen;
+  if(m.wp)     S.workPower = Math.max(1, S.workPower + m.wp);
+  if(m.money)  S.money += m.money;
+  S.sta = S.maxSta; S.men = S.maxMen;
+
+  document.getElementById('screen-intro').classList.add('hidden');
   document.getElementById('screen-game').classList.remove('hidden');
-  log('入社しました。まずは研修案件からスタートです。', 'ok');
+  log('入社しました。「'+g.label+'」'+g.log, 'ok');
+  log('最初の案件「'+S.project.name+'」が割り当てられた。'+S.project.brief, 'ev');
   showPlay();
   render();
 }
@@ -576,18 +666,25 @@ function quarterPreview(hours, weekendDays){
   const kousu = workDays * hours * wp;
   const intensity = Math.pow(hours / 8, 1.5);
   const staDrain = workDays * intensity * proj.staminaWeight * CONFIG.baseDrain;
-  const menDrain = workDays * intensity * proj.mentalWeight  * CONFIG.baseDrain;
+  let menDrain = workDays * intensity * proj.mentalWeight  * CONFIG.baseDrain;
+  // 《天才》: 仕事力が高いのに簡単な案件だと退屈で心がすり減る
+  let boredom = 0;
+  if(S.abilities.genius && wp >= CONFIG.geniusWpThreshold && proj.reqMult <= 1.0){
+    boredom = workDays * CONFIG.geniusBoredomPerDay;
+    menDrain += boredom;
+  }
   let recovery = restDays * CONFIG.restRate;
   let menSupport = 0;
   if(S.relationship === 'married') menSupport += CONFIG.marriedBonus;
   else if(S.relationship === 'girlfriend') menSupport += CONFIG.gfBonus;
   menSupport += S.children * CONFIG.childBonus;
-  const money = Math.round(manHours * proj.pay * (0.6 + wp * 0.02) * CONFIG.moneyRate);
+  let pay = proj.pay * (S.president ? 1.3 : 1.0);
+  const money = Math.round(manHours * pay * (0.6 + wp * 0.02) * CONFIG.moneyRate);
   return {
     kousu: Math.round(kousu),
     staDelta: Math.round(recovery - staDrain),
     menDelta: Math.round(recovery - menDrain + menSupport),
-    money,
+    money, boredom,
   };
 }
 
@@ -599,7 +696,7 @@ function updatePreview(){
   const p = quarterPreview(hours, wknd);
   const proj = S.project;
   const projectedPct = (proj.accumulated + p.kousu) / proj.required * 100;
-  let approx = Math.round(projectedPct / 10) * 10;          // 10%刻みの概算
+  let approx = Math.round(projectedPct / 10) * 10;
   let pctText = approx >= 100 ? '約100%（超過分は他PJのヘルプに）' : ('約' + approx + '%');
   let html = '';
   html += '<span class="chip">予想進捗：' + pctText + '</span>';
@@ -609,6 +706,33 @@ function updatePreview(){
   document.getElementById('preview').innerHTML = html;
 }
 
+/* ===================== お金で自己投資 ===================== */
+function renderCare(){
+  const box = document.getElementById('care');
+  box.innerHTML = '';
+  for(const key of ['massage','trip','gym','clinic']){
+    const c = CONFIG.care[key];
+    const b = document.createElement('button');
+    let eff = c.sta? '体力↑' : c.men? 'メンタル↑' : c.maxSta? '体力上限↑' : 'メンタル上限↑';
+    b.innerHTML = c.label + '<br><span class="sub">' + man(c.cost) + ' / ' + eff + '</span>';
+    b.disabled = S.money < c.cost;
+    b.onclick = ()=> buyCare(key);
+    box.appendChild(b);
+  }
+}
+function buyCare(key){
+  const c = CONFIG.care[key];
+  if(S.money < c.cost) return;
+  S.money -= c.cost;
+  if(c.sta)    S.sta = clamp(S.sta + c.sta, 0, S.maxSta);
+  if(c.men)    S.men = clamp(S.men + c.men, 0, S.maxMen);
+  if(c.maxSta){ S.maxSta += c.maxSta; S.sta += c.maxSta; }
+  if(c.maxMen){ S.maxMen += c.maxMen; S.men += c.maxMen; }
+  log('💴 '+c.label+'にお金を使った（'+man(c.cost)+'）', 'ok');
+  render();
+}
+
+/* ===================== WORK ===================== */
 function work(){
   if(S.over) return;
   const hours = +document.getElementById('hours').value;
@@ -629,8 +753,18 @@ function work(){
 
   log('第'+S.quarter+'四半期：'+hours+'時間/日・休日'+wknd+'日勤務（収入 '+man(p.money)+'）');
 
-  if(S.sta <= 0){ return gameOver('過労死','💀',
-    '体力が尽き、あなたは帰らぬ人となった。働きすぎだったのだ。仕事ができないなんて、悲しい。'); }
+  // 過労死判定（不死鳥なら一度だけ復活）
+  if(S.sta <= 0){
+    if(S.abilities.phoenix && !S.phoenixUsed){
+      S.phoenixUsed = true;
+      S.sta = Math.round(S.maxSta * 0.5);
+      S.men = Math.max(S.men, Math.round(S.maxMen * 0.3));
+      log('🔥 過労死……かと思いきや、《不死鳥》の力で灰の中から蘇った！', 'rare');
+    } else {
+      return gameOver('過労死','💀',
+        '体力が尽き、あなたは帰らぬ人となった。働きすぎだったのだ。仕事ができないなんて、悲しい。');
+    }
+  }
   if(S.men <= 0){ return gameOver('心が折れた','🫥',
     'メンタルが限界を超え、あなたは出社できなくなった。長い休職の末、静かに会社を去った。'); }
 
@@ -643,15 +777,15 @@ function work(){
     if(S.over) return;
   }
 
-  // イベントを決定（このタイミングの状態で抽選。重複なし＋分岐）
+  // 関係が安定していれば相手の不満(strain)は和らぐ
+  if(S.relationship !== 'single' && S.men >= CONFIG.crisisMental + 18 && S.relStrain > 0){
+    S.relStrain -= 1;
+  }
+
   S.pendingEvent = pickEvent();
 
-  // 画面遷移：完了演出 →(2択選択)→ イベント → 結果 → 次の四半期
-  if(S.projectEnded){
-    showComplete();
-  } else {
-    showEvent();
-  }
+  if(S.projectEnded){ showComplete(); }
+  else { showEvent(); }
   render();
 }
 
@@ -660,113 +794,79 @@ function resolveSuccess(){
   const gain = 1 + Math.floor(proj.length/2) + Math.floor(proj.index/16) + (proj.wpBonus||0);
   S.workPower += gain;
   S.men = clamp(S.men + CONFIG.successMental, 0, S.maxMen);
-  S.consecFails = 0;
+  const revenue = Math.round(proj.contract * CONFIG.cashWinRate);
+  S.companyCash += revenue;
   const overflow = proj.accumulated - proj.required;
-  S.projectEnded = { success:true, name:proj.name, gain, overflow, earned:proj.earned };
-  log('🎉「'+proj.name+'」完遂！仕事力 +'+gain, 'ok');
+  S.projectEnded = { success:true, name:proj.name, gain, overflow, earned:proj.earned, revenue };
+  log('🎉「'+proj.name+'」完遂！仕事力 +'+gain+'（会社に利益 '+man(revenue)+'）', 'ok');
 }
 
 function resolveFail(){
   const proj = S.project;
   S.men = clamp(S.men - CONFIG.failMental, 0, S.maxMen);
-  S.consecFails += 1;
-  S.projectEnded = { success:false, name:proj.name, fails:S.consecFails, earned:proj.earned };
-  log('💥「'+proj.name+'」は納期に間に合わず失敗…（連続失敗 '+S.consecFails+'回）', 'bad');
+  const loss = Math.round(proj.contract * CONFIG.cashLossRate);
+  S.companyCash -= loss;
+  S.projectEnded = { success:false, name:proj.name, earned:proj.earned, loss };
+  log('💥「'+proj.name+'」失敗…会社のキャッシュが '+man(loss)+' 減った', 'bad');
   if(S.men <= 0){ gameOver('心が折れた','🫥','失敗の重圧でメンタルが限界に達し、あなたは会社を去った。'); return; }
-  if(S.consecFails >= CONFIG.bankruptcyFails){
-    gameOver('会社倒産','🏚️',
-      'プロジェクトの連続失敗により、会社は倒産してしまった。あなたは職を失った。仕事ができないなんて、悲しい。');
+  if(S.companyCash <= 0){
+    // 倒産。ただし《買収の野心》＋資金があれば社長就任
+    if(S.abilities.buyout && !S.president && S.money >= CONFIG.buyoutCost){
+      S.money -= CONFIG.buyoutCost;
+      S.companyCash = CONFIG.buyoutRecap;
+      S.president = true;
+      S.projectEnded.buyout = true;
+      log('🏛️ 倒産寸前の会社を私財('+man(CONFIG.buyoutCost)+')で買収し、あなたは社長に就任した！', 'rare');
+    } else {
+      gameOver('会社倒産','🏚️',
+        '会社のキャッシュが尽き、倒産してしまった。あなたは職を失った。仕事ができないなんて、悲しい。');
+    }
   }
 }
 
-/* ===================== EVENT SELECTION ===================== */
+/* ===================== EVENTS ===================== */
 function pickEvent(){
-  // 働きすぎによる別れ(決定論的): 恋人/配偶者がいてメンタルが低いと別れ
-  if((S.relationship === 'girlfriend' || S.relationship === 'married') && S.men < CONFIG.breakupMental){
-    return breakupEvent();
+  // 恋愛の危機: メンタル低下で関係悪化。選択で回避できるが strain が限界に達すると別れ
+  if(S.relationship === 'girlfriend' || S.relationship === 'married'){
+    if(S.men < CONFIG.crisisMental){
+      if(S.relStrain >= CONFIG.maxStrain) return breakupEvent();
+      return crisisEvent();
+    }
   }
   for(const e of EVENTS){
     if(!S.usedEvents.has(e.id) && e.cond(S)) return e;
   }
-  // ユニークイベント在庫切れ → フィラー(四半期で巡回し変化をつける)
   return FILLERS[S.quarter % FILLERS.length];
+}
+
+function crisisEvent(){
+  const isMarried = S.relationship === 'married';
+  const who = isMarried ? '配偶者' : '恋人';
+  return {
+    id:'_crisis', title: (isMarried?'夫婦の危機':'恋人との危機'),
+    text: '働きすぎですれ違いが続き、'+who+'が不満をこぼした。今ならまだ、関係は取り戻せる。あなたは——',
+    choices:[
+      {label:'仕事を休んで旅行に連れて行く', resetStrain:true, eff:{dMen:18,dSta:5,money:-500000,dMaxMen:4}, log:'二人の時間を取り戻し、絆が深まった。'},
+      {label:'高級レストランで埋め合わせる', resetStrain:true, eff:{dMen:12,money:-250000}, log:who+'の機嫌が直った。'},
+      {label:'口先だけで謝る', strain:1, eff:{dMen:4}, log:'その場はしのいだが、根本は変わっていない…。'},
+      {label:'仕事を優先し、後で埋め合わせると言う', strain:2, eff:{dWp:3,dMen:-4}, log:'また仕事を選んだ。'+who+'の我慢は限界に近い…。'},
+    ],
+  };
 }
 
 function breakupEvent(){
   const isMarried = S.relationship === 'married';
   const who = isMarried ? '配偶者' : '恋人';
   return {
-    id:'_breakup',
-    title: isMarried ? '離婚の危機' : '別れ話',
-    text: '働きすぎですれ違いが続いた。'+who+'が「もう限界」と切り出した。あなたは——',
+    id:'_breakup', title: isMarried ? '離婚' : '別れ',
+    text: who+'の我慢は限界を超えてしまった。「もう、無理」——引き止める言葉も、もう響かない。',
     choices:[
-      {label:'仕事は減らせないと正直に話す', eff:{rel:'breakup',dMen:-5}, log:who+'と別れた。仕事を選んだのだ。💔'},
-      {label:'謝るが、また残業してしまう', eff:{rel:'breakup',dMen:-8}, log:'謝っても行動は変わらず、別れに至った。💔'},
+      {label:'静かに受け入れる', eff:{rel:'breakup',dMen:-5}, log:who+'と別れた。仕事に費やした日々の代償だ。💔'},
       {label:'仕事に没頭して紛らわす', eff:{rel:'breakup',dWp:3,dMen:-10}, log:who+'と別れ、仕事に逃げた。💔'},
-      {label:'これを機に働き方を見直すと誓う', flags:['mindful'], eff:{rel:'breakup',dMaxMen:6,dMen:-3}, log:who+'とは別れたが、教訓を得た。💔'},
+      {label:'これを教訓に生き方を見直す', flags:[], eff:{rel:'breakup',dMaxMen:6,dMen:-3}, log:who+'とは別れたが、教訓を得た。💔'},
+      {label:'しばらく一人を楽しむと決める', eff:{rel:'breakup',dMen:2}, log:who+'と別れ、自由な時間を取り戻した。💔'},
     ],
   };
-}
-
-/* ===================== SCREENS ===================== */
-function hideAllPhases(){
-  ['phase-play','phase-complete','phase-select','phase-event','phase-evresult']
-    .forEach(id=>document.getElementById(id).classList.add('hidden'));
-}
-function showPhase(id){ hideAllPhases(); document.getElementById(id).classList.remove('hidden'); }
-
-function showPlay(){ showPhase('phase-play'); updatePreview(); }
-
-function showComplete(){
-  const r = S.projectEnded;
-  showPhase('phase-complete');
-  const head = document.getElementById('comp-head');
-  const body = document.getElementById('comp-body');
-  if(r.success){
-    head.innerHTML = '🎉 プロジェクト完了！';
-    let html = '<p><b>「'+r.name+'」</b>を無事に完遂した。</p>';
-    html += '<p class="res-line pos">仕事力が +'+r.gain+' 上がった。</p>';
-    html += '<p class="res-line">このプロジェクトでの収入：'+man(r.earned)+'</p>';
-    if(r.overflow > 0){
-      const pct = Math.round((r.overflow / S.project.required) * 100 / 10) * 10;
-      html += '<p class="res-line pos">進捗100%を超過（約+'+pct+'%）！余剰の工数は他チームのヘルプに回り、その分も収入になった。</p>';
-    }
-    body.innerHTML = html;
-  } else {
-    head.innerHTML = '💥 プロジェクト失敗…';
-    let html = '<p><b>「'+r.name+'」</b>は納期に間に合わなかった。</p>';
-    html += '<p class="res-line neg">連続失敗：'+r.fails+'回（2回でクビ→会社倒産）。</p>';
-    html += '<p class="res-line">このプロジェクトでの収入：'+man(r.earned)+'</p>';
-    body.innerHTML = html;
-  }
-}
-
-function goToSelect(){
-  // 次の2案件を生成
-  S.projIndex += 1;
-  S.options = [ makeOption(S.projIndex, 0), makeOption(S.projIndex, 1) ];
-  showPhase('phase-select');
-  for(let i=0;i<2;i++){
-    const o = S.options[i];
-    const el = document.getElementById(i===0 ? 'opt-A' : 'opt-B');
-    el.innerHTML =
-      '<h3>'+(i===0?'A. ':'B. ')+o.name+'</h3>'
-      + '<div>'
-      + '<span class="tag">'+o.kind+'</span>'
-      + '<span class="tag '+(o.staminaWeight>=o.mentalWeight?'sta':'men')+'">'+o.type+'</span>'
-      + '<span class="tag pay">報酬 '+payRank(o.pay)+'</span>'
-      + '</div>'
-      + '<div class="sub" style="margin-top:6px;">難易度 '+o.difficulty+'｜納期 '+o.length+'期</div>';
-  }
-}
-
-function chooseProject(i){
-  S.project = S.options[i];
-  S.options = null;
-  log('「'+S.project.name+'」に着手した。', 'ev');
-  // 続けてイベントへ
-  showEvent();
-  render();
 }
 
 function showEvent(){
@@ -778,7 +878,7 @@ function showEvent(){
   box.innerHTML = '';
   ev.choices.forEach((c, i)=>{
     const b = document.createElement('button');
-    b.textContent = c.label;   // 効果は表示しない
+    b.textContent = c.label;
     b.onclick = ()=> chooseEvent(i);
     box.appendChild(b);
   });
@@ -788,7 +888,7 @@ function chooseEvent(i){
   const ev = S.pendingEvent;
   const c = ev.choices[i];
   const eff = c.eff || {};
-  const before = { sta:S.sta, men:S.men, maxSta:S.maxSta, maxMen:S.maxMen, wp:S.workPower, money:S.money, rel:S.relationship, kids:S.children };
+  const before = { sta:S.sta, men:S.men, maxSta:S.maxSta, maxMen:S.maxMen, wp:S.workPower, money:S.money };
 
   if(eff.dMaxSta) S.maxSta += eff.dMaxSta;
   if(eff.dMaxMen) S.maxMen += eff.dMaxMen;
@@ -799,36 +899,37 @@ function chooseEvent(i){
   if(eff.rel === 'girlfriend') S.relationship = 'girlfriend';
   if(eff.rel === 'marry')      S.relationship = 'married';
   if(eff.rel === 'child'){ S.relationship = 'married'; S.children += 1; }
-  if(eff.rel === 'breakup')    S.relationship = 'single';
+  if(eff.rel === 'breakup'){ S.relationship = 'single'; S.relStrain = 0; }
   if(c.flags) c.flags.forEach(f=> S.flags[f] = true);
+  // 恋愛危機の strain 処理
+  if(c.resetStrain) S.relStrain = 0;
+  if(c.strain) S.relStrain += c.strain;
+  // レア能力付与
+  let granted = null;
+  if(c.grant){ S.abilities[c.grant] = true; granted = c.grant; }
 
   S.sta = clamp(S.sta, 0, S.maxSta);
   S.men = clamp(S.men, 0, S.maxMen);
-  // ユニークイベントのみ消費（フィラー/別れは繰り返し可）
   if(!ev.id.startsWith('_')) S.usedEvents.add(ev.id);
-  log('【'+ev.title+'】'+c.log, 'ev');
+  log('【'+ev.title+'】'+c.log, ev.rare||c.grant ? 'rare' : 'ev');
 
-  // 結果表示
-  showResult(ev, c, eff, before);
+  showResult(ev, c, eff, before, granted);
   render();
 }
 
-function showResult(ev, c, eff, before){
+function showResult(ev, c, eff, before, granted){
   showPhase('phase-evresult');
   document.getElementById('evr-log').textContent = c.log;
   const lines = [];
-  // 体力・メンタルの「現在値」変化は数値を隠し、質的に表現
   const qual = (d, name)=>{
     if(!d) return null;
     const a = Math.abs(d);
     const word = a>=20 ? '大きく' : (a>=8 ? '' : '少し');
     return { txt: name + (d>0 ? 'が'+word+'回復した' : 'が'+word+'減った'), pos: d>0 };
   };
-  const actualSta = S.sta - before.sta, actualMen = S.men - before.men;
   let q;
   if(eff.dSta && (q=qual(eff.dSta,'体力'))) lines.push(q);
   if(eff.dMen && (q=qual(eff.dMen,'メンタル'))) lines.push(q);
-  // 最大値・仕事力・お金は具体的に表示
   if(eff.dMaxSta) lines.push({txt:'体力の最大値 '+sign(eff.dMaxSta), pos:eff.dMaxSta>0});
   if(eff.dMaxMen) lines.push({txt:'メンタルの最大値 '+sign(eff.dMaxMen), pos:eff.dMaxMen>0});
   if(eff.dWp)     lines.push({txt:'仕事力 '+sign(S.workPower-before.wp), pos:(S.workPower-before.wp)>0});
@@ -837,9 +938,11 @@ function showResult(ev, c, eff, before){
   if(eff.rel==='marry')      lines.push({txt:'結婚した 💍', pos:true});
   if(eff.rel==='child')      lines.push({txt:'子供が生まれた 👶', pos:true});
   if(eff.rel==='breakup')    lines.push({txt:'パートナーと別れた 💔', pos:false});
+  const abilityName = { phoenix:'🔥 不死鳥', genius:'🧠 天才', buyout:'🏛️ 買収の野心' };
+  if(granted) lines.push({txt:'レア能力『'+abilityName[granted]+'』に目覚めた！', rare:true});
   const box = document.getElementById('evr-effects');
   box.innerHTML = lines.length
-    ? lines.map(l=>'<p class="res-line '+(l.pos?'pos':'neg')+'">'+l.txt+'</p>').join('')
+    ? lines.map(l=>'<p class="res-line '+(l.rare?'rare':l.pos?'pos':'neg')+'">'+l.txt+'</p>').join('')
     : '<p class="res-line">特に大きな変化はなかった。</p>';
 }
 
@@ -852,24 +955,88 @@ function afterQuarter(){
   render();
 }
 
+/* ===================== SCREENS ===================== */
+function hideAllPhases(){
+  ['phase-play','phase-complete','phase-select','phase-event','phase-evresult']
+    .forEach(id=>document.getElementById(id).classList.add('hidden'));
+}
+function showPhase(id){ hideAllPhases(); document.getElementById(id).classList.remove('hidden'); }
+function showPlay(){ showPhase('phase-play'); updatePreview(); renderCare(); }
+
+function showComplete(){
+  const r = S.projectEnded;
+  showPhase('phase-complete');
+  const head = document.getElementById('comp-head');
+  const body = document.getElementById('comp-body');
+  if(r.success){
+    head.innerHTML = '🎉 プロジェクト完了！';
+    let html = '<p><b>「'+r.name+'」</b>を無事に完遂した。</p>';
+    html += '<p class="res-line pos">仕事力が +'+r.gain+' 上がった。</p>';
+    html += '<p class="res-line">あなたの収入：'+man(r.earned)+'</p>';
+    html += '<p class="res-line pos">会社の利益：'+man(r.revenue)+'</p>';
+    if(r.overflow > 0){
+      const pct = Math.round((r.overflow / S.project.required) * 100 / 10) * 10;
+      html += '<p class="res-line pos">進捗100%超過（約+'+pct+'%）！余剰工数は他チームのヘルプに回り収入になった。</p>';
+    }
+    body.innerHTML = html;
+  } else {
+    head.innerHTML = '💥 プロジェクト失敗…';
+    let html = '<p><b>「'+r.name+'」</b>は納期に間に合わなかった。</p>';
+    html += '<p class="res-line neg">会社のキャッシュが '+man(r.loss)+' 減った。</p>';
+    html += '<p class="res-line">あなたの収入：'+man(r.earned)+'</p>';
+    if(r.buyout) html += '<p class="res-line rare">🏛️ 倒産寸前の会社を買収し、社長に就任した！</p>';
+    body.innerHTML = html;
+  }
+}
+
+function goToSelect(){
+  S.projIndex += 1;
+  S.options = [ makeOption(S.projIndex, 0), makeOption(S.projIndex, 1) ];
+  showPhase('phase-select');
+  for(let i=0;i<2;i++){
+    const o = S.options[i];
+    const el = document.getElementById(i===0 ? 'opt-A' : 'opt-B');
+    el.innerHTML =
+      '<h3>'+(i===0?'A. ':'B. ')+o.name+'</h3>'
+      + '<div class="sub" style="margin-bottom:6px;">'+o.brief+'</div>'
+      + '<div>'
+      + '<span class="tag">'+o.kind+'</span>'
+      + '<span class="tag '+(o.staminaWeight>=o.mentalWeight?'sta':'men')+'">'+o.type+'</span>'
+      + '<span class="tag pay">報酬 '+payRank(o.pay)+'</span>'
+      + '</div>'
+      + '<div class="sub" style="margin-top:6px;">難易度 '+o.difficulty+'｜納期 '+o.length+'期｜受注額 '+man(o.contract)
+      + '（失敗時 会社損失 約'+man(Math.round(o.contract*CONFIG.cashLossRate))+'）</div>';
+  }
+}
+
+function chooseProject(i){
+  S.project = S.options[i];
+  S.options = null;
+  log('「'+S.project.name+'」に着手した。'+S.project.brief, 'ev');
+  showEvent();
+  render();
+}
+
 /* ===================== ENDINGS ===================== */
 function endingByMoney(){
   const m = S.money;
+  const pre = S.president ? 'オーナー社長として、' : '';
+  const survived = S.phoenixUsed ? '一度は過労死の淵から蘇り、' : '';
   if(m >= CONFIG.endRich){
     gameOver('南の島で悠々自適','🏝️👑',
-      '40歳。莫大な貯金を手に、あなたは南の島に豪邸を建てた。'
+      '40歳。'+survived+pre+'莫大な貯金を手に、あなたは南の島に豪邸を建てた。'
       +'もう二度と働く必要はない。プールサイドで、これまでの激闘を懐かしく思い返す。最高の人生だった。');
   } else if(m >= CONFIG.endWealthy){
     gameOver('南の島でのんびり暮らす','🏝️',
-      '40歳。十分な蓄えを得て、あなたは会社を辞め南の島へ。'
+      '40歳。'+survived+pre+'十分な蓄えを得て、あなたは会社を辞め南の島へ。'
       +'波の音を聞きながら、のんびりと第二の人生を楽しむ。よく頑張った。お疲れさまでした。');
   } else if(m >= CONFIG.endNormal){
     gameOver('地方都市で慎ましく','🏡',
-      '40歳。大金持ちにはなれなかったが、あなたは都会を離れ、物価の安い地方都市へ。'
+      '40歳。'+survived+pre+'大金持ちにはなれなかったが、あなたは物価の安い地方都市へ移り住んだ。'
       +'家庭菜園でもしながら、慎ましくも穏やかな暮らしを始めた。これはこれで、悪くない。');
   } else {
     gameOver('まだまだ働く','🧑‍💻',
-      '40歳。貯金は心もとなく、南の島の夢は遠い。'
+      '40歳。'+survived+pre+'貯金は心もとなく、南の島の夢は遠い。'
       +'生活のため、あなたはこれからも働き続ける。デスマーチの日々は、まだ終わらない…。');
   }
 }
@@ -900,23 +1067,37 @@ function render(){
 
   document.getElementById('wp').textContent = S.workPower;
   document.getElementById('money').textContent = man(S.money);
+  const cashEl = document.getElementById('cash');
+  cashEl.textContent = man(S.companyCash);
+  cashEl.style.color = S.companyCash < CONFIG.contractBase ? 'var(--danger)' : 'var(--cash)';
 
   const relMap = {single:'独身', girlfriend:'恋人あり 💗', married:'既婚 💍'};
   let relTxt = relMap[S.relationship];
   if(S.children>0) relTxt += '・子供'+S.children+'人 👶';
+  if(S.president) relTxt = '👔社長 / ' + relTxt;
   document.getElementById('relpill').innerHTML = relTxt;
 
+  // abilities
+  const abEl = document.getElementById('abilities');
+  const abs = [];
+  if(S.abilities.phoenix) abs.push('<span class="tag ability">🔥 不死鳥'+(S.phoenixUsed?'(使用済)':'')+'</span>');
+  if(S.abilities.genius)  abs.push('<span class="tag ability">🧠 天才</span>');
+  if(S.abilities.buyout)  abs.push('<span class="tag ability">🏛️ 買収の野心'+(S.president?'(達成)':'')+'</span>');
+  abEl.innerHTML = abs.join(' ');
+
   const warn = document.getElementById('rel-warn');
-  if((S.relationship==='girlfriend'||S.relationship==='married') && healthLevel(S.men,S.maxMen)===0){
+  if(S.relationship!=='single' && S.men < CONFIG.crisisMental + 12){
     warn.classList.remove('hidden');
-    warn.textContent = '⚠ 働きすぎで'+(S.relationship==='married'?'家庭':'恋人との関係')+'がギクシャクしている…（メンタルが低いままだと別れてしまう）';
+    const danger = S.relStrain >= CONFIG.maxStrain - 1;
+    warn.textContent = '⚠ 働きすぎで'+(S.relationship==='married'?'家庭':'恋人との関係')+'がギクシャクしている…'
+      + (danger ? '【相手の我慢は限界寸前！】' : '（メンタルを回復させれば持ち直せる）');
   } else { warn.classList.add('hidden'); }
 
-  // project (進捗は約10%刻み、工数の実数は出さない)
   const proj = S.project;
   document.getElementById('proj-name').textContent = proj.name;
+  document.getElementById('proj-brief').textContent = proj.brief;
   document.getElementById('proj-desc').textContent =
-    '難易度 '+proj.difficulty+'｜'+proj.type+'｜報酬 '+payRank(proj.pay)+'｜納期 '+proj.length+'期';
+    '難易度 '+proj.difficulty+'｜'+proj.type+'｜報酬 '+payRank(proj.pay)+'｜納期 '+proj.length+'期｜受注額 '+man(proj.contract);
   document.getElementById('proj-tags').innerHTML =
     '<span class="tag sta">体力消耗 '+(proj.staminaWeight>=1.2?'大':proj.staminaWeight>=0.95?'中':'小')+'</span>'
     + '<span class="tag men">メンタル消耗 '+(proj.mentalWeight>=1.2?'大':proj.mentalWeight>=0.95?'中':'小')+'</span>';
@@ -927,16 +1108,19 @@ function render(){
   document.getElementById('proj-deadline').textContent =
     '納期まで残り '+remain+'期'+(remain<=1?'（今期で必要工数に届かないと失敗！）':'');
 
-  if(!document.getElementById('phase-play').classList.contains('hidden')) updatePreview();
+  if(!document.getElementById('phase-play').classList.contains('hidden')){ updatePreview(); renderCare(); }
 }
 
 /* ===================== HELPERS ===================== */
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
 function sign(n){ return n>0 ? '+'+n : ''+n; }
 function man(yen){
-  // 万円表示(端数は万未満切り捨て)。1万未満は円表示。
-  if(Math.abs(yen) >= 10000) return Math.round(yen/10000).toLocaleString()+'万円';
-  return Math.round(yen).toLocaleString()+'円';
+  const neg = yen < 0; const a = Math.abs(yen);
+  let s;
+  if(a >= 100000000) s = (a/100000000).toFixed(a%100000000?1:0)+'億円';
+  else if(a >= 10000) s = Math.round(a/10000).toLocaleString()+'万円';
+  else s = Math.round(a).toLocaleString()+'円';
+  return (neg?'-':'')+s;
 }
 function log(msg, cls){
   const el = document.getElementById('log');
@@ -954,12 +1138,16 @@ function gameOver(title, emoji, text){
   document.getElementById('end-title').textContent = title;
   document.getElementById('end-text').textContent = text;
   const relMap = {single:'独身', girlfriend:'恋人あり', married:'既婚'};
+  const ab = [];
+  if(S.abilities.phoenix) ab.push('🔥不死鳥');
+  if(S.abilities.genius) ab.push('🧠天才');
+  if(S.abilities.buyout) ab.push('🏛️買収');
   document.getElementById('end-stats').innerHTML =
-    '最終年齢 '+Math.floor(S.age)+'歳｜勤続'+S.years+'年<br>'
+    '最終年齢 '+Math.floor(S.age)+'歳｜勤続'+S.years+'年'+(S.president?'｜👔社長':'')+'<br>'
     +'最終貯金 <b style="color:var(--money)">'+man(S.money)+'</b>｜仕事力 '+S.workPower+'<br>'
-    +'体力上限 '+S.maxSta+'｜メンタル上限 '+S.maxMen+'<br>'
-    +'着手プロジェクト '+(S.projIndex+1)+'件｜'+relMap[S.relationship]
-    +(S.children>0?'・子供'+S.children+'人':'');
+    +'体力上限 '+S.maxSta+'｜メンタル上限 '+S.maxMen+'｜会社キャッシュ '+man(S.companyCash)+'<br>'
+    +'着手プロジェクト '+(S.projIndex+1)+'件｜'+relMap[S.relationship]+(S.children>0?'・子供'+S.children+'人':'')
+    +(ab.length?'<br>覚醒した能力：'+ab.join(' '):'');
 }
 </script>
 </body>
