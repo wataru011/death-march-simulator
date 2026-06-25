@@ -604,6 +604,178 @@ const FILLERS = [
     ]},
 ];
 
+/* ===================== 生成イベント（2000・状態で出し分け） =====================
+   体力/メンタルの3段階・恋人/結婚/子供の有無・勤続年数・過去の選択(フラグ)を
+   条件にした2000個のイベントを、テーマ×トピック×キャリア段階から決定論的に生成する。
+   選択は「今の状態に最も合うイベント(条件の多いもの)」が優先される。 */
+function needCond(need){
+  return function(s){
+    if(need.sta!==undefined && healthLevel(s.sta,s.maxSta)!==need.sta) return false;
+    if(need.men!==undefined && healthLevel(s.men,s.maxMen)!==need.men) return false;
+    if(need.rel==='rel'){ if(s.relationship==='single') return false; }
+    else if(need.rel && s.relationship!==need.rel) return false;
+    if(need.kids && s.children<1) return false;
+    if(need.minYears!==undefined && s.years<need.minYears) return false;
+    if(need.money==='high' && s.money<5000000) return false;
+    if(need.money==='low' && s.money>=1500000) return false;
+    if(need.flag && !s.flags[need.flag]) return false;
+    if(need.noflag && s.flags[need.noflag]) return false;
+    return true;
+  };
+}
+function ch(label,eff,log){ return {label:label, eff:eff, log:log}; }
+function buildEvents(){
+  const ERA=['駆け出しの頃','中堅になった今','ベテランとして'];
+  const yrs=[0,3,8];
+  const fams=[
+   /* 0 仕事トラブル(勤続段階で変化) */
+   { topics:['仕様変更の嵐','本番環境の障害','顧客の無茶な要求','レビュー指摘の山','固まらない要件','落ち続けるテスト','他チームの遅延','急な仕様追加','リリース直前のバグ','レガシーコードの解読','炎上案件の応援要請','甘かった見積もり','多すぎる並行タスク','深夜のアラート対応','顧客デモの準備','障害の原因究明','深刻な性能問題','移行作業のトラブル','理不尽なクレーム','存在しないドキュメント'],
+     build(t,c){const T=c%3;return{need:{minYears:yrs[T]},title:'案件の壁：'+t,
+       text:ERA[T]+'、「'+t+'」に直面した。どう動く？',choices:[
+       ch('気合いで乗り切る',{dWp:1+T,dSta:-(5+T*2),dMen:-(3+T)},'力を尽くして対応した。'),
+       ch('定時で切り上げる',{dMen:5},'無理せず切り上げた。'),
+       ch('同僚と協力する',{dMen:4,dWp:1},'チームで乗り越えた。'),
+       ch('残業で稼ぐ覚悟で粘る',{money:60000*(T+1),dSta:-(6+T*2)},'残業で稼いだが疲れた。')]};}},
+   /* 1 体力が低いとき */
+   { topics:['抜けない疲れ','慢性的な肩こり','寝ても残る眠気','階段での息切れ','長引く風邪','ひどい眼精疲労','悪化する腰痛','出ない食欲','続く頭痛','重だるい体'],
+     build(t,c){const T=c%3;return{need:{sta:0},title:'体の悲鳴：'+t,
+       text:'「'+t+'」。体が限界を訴えている。',choices:[
+       ch('思い切って休む',{dSta:12+T*2},'しっかり休んで回復した。'),
+       ch('栄養ドリンクで誤魔化す',{dSta:5,money:-20000,dMen:-2},'一時しのぎした。'),
+       ch('マッサージに行く',{dSta:10,money:-150000},'体がほぐれた。'),
+       ch('無理して働く',{dWp:1,dSta:-8,dMen:-3},'体に鞭打って働いた。')]};}},
+   /* 2 体力が高いとき */
+   { topics:['妙な好調','有り余る活力','軽い体','苦じゃない早起き','久々の絶好調','みなぎる気力','冴える頭','弾む足取り'],
+     build(t,c){const T=c%3;return{need:{sta:2},title:'絶好調：'+t,
+       text:'「'+t+'」を感じる。この勢いをどう活かす？',choices:[
+       ch('仕事に全力投球',{dWp:2+T,dSta:-6},'勢いで成果を上げた。'),
+       ch('体を鍛えておく',{dMaxSta:4,dSta:-4},'体力の最大値が上がった。'),
+       ch('周りを助ける',{dMen:6,dWp:1},'感謝されて気分も上々。'),
+       ch('思い切り遊ぶ',{dMen:8,money:-50000},'リフレッシュした。')]};}},
+   /* 3 メンタルが低いとき */
+   { topics:['出ないやる気','辛い朝','些細なことへの苛立ち','涙もろさ','将来への不安','仕事への恐怖','人を避けたい気分','眠れない夜'],
+     build(t,c){const T=c%3;return{need:{men:0},title:'心の不調：'+t,
+       text:'「'+t+'」に苛まれている。',choices:[
+       ch('しっかり休養する',{dMen:12+T*2},'心が落ち着いた。'),
+       ch('カウンセリングを受ける',{dMen:10,dMaxMen:3,money:-120000},'専門家に救われた。'),
+       ch('趣味で発散する',{dMen:9,dSta:-2},'気が晴れた。'),
+       ch('我慢して働き続ける',{dWp:1,dMen:-8},'無理を重ねた。')]};}},
+   /* 4 メンタルが高いとき */
+   { topics:['前向きな気持ち','挑戦したい衝動','人への優しさ','湧き上がる感謝','満ちる自信','穏やかな心'],
+     build(t,c){const T=c%3;return{need:{men:2},title:'心の充実：'+t,
+       text:'「'+t+'」に満ちている。',choices:[
+       ch('新しい挑戦をする',{dWp:2+T,dMen:-4},'果敢に挑んだ。'),
+       ch('周囲に感謝を伝える',{dMen:6},'温かい気持ちが広がった。'),
+       ch('後輩を励ます',{dMen:5,dWp:1},'頼られて充実した。'),
+       ch('堅実に貯金に励む',{money:80000},'将来に備えた。')]};}},
+   /* 5 お金(資産状況で変化) */
+   { topics:['臨時ボーナスの使い道','投資の勧誘','ふるさと納税','保険の見直し','家賃の更新','欲しいガジェット','友人へのご祝儀','奨学金の返済','相場の変動','副収入の話'],
+     build(t,c){const hi=c%2===0;return{need:hi?{money:'high'}:{money:'low'},title:'お金の話：'+t,
+       text:(hi?'懐に余裕がある中で':'懐が寂しい中で')+'「'+t+'」に向き合う。',choices:[
+       ch('堅実に投資する',{money:hi?400000:120000},'資産が少し増えた。'),
+       ch('自分にご褒美',{money:-(hi?300000:80000),dMen:8},'心が満たされた。'),
+       ch('ひたすら節約',{money:hi?100000:60000,dMen:-3},'我慢して貯めた。'),
+       ch('スキルに自己投資',{money:-100000,dWp:2},'学びに使った。')]};}},
+   /* 6 同僚・社内(過去の選択でフラグ付与) */
+   { topics:['後輩の指導','同僚の退職','上司の異動','飲み会の誘い','チームのいざこざ','他部署との会議','新人の歓迎','先輩の相談ごと','社内の派閥','根回しの政治'],
+     build(t,c){const T=c%3;return{need:{minYears:yrs[T]},title:'社内のこと：'+t,
+       text:ERA[T]+'、「'+t+'」に関わることになった。',choices:[
+       {label:'飲みニケーションで絆を作る',flags:['drinker'],eff:{dMen:6,dSta:-4,money:-30000},log:'飲み仲間ができた。'},
+       {label:'技術で信頼を勝ち取る',flags:['techGuru'],eff:{dWp:2,dMen:-2},log:'頼られる存在になった。'},
+       ch('波風立てず距離を置く',{dMen:3},'そつなくこなした。'),
+       ch('真正面から向き合う',{dMen:-3,dWp:1},'骨が折れたが筋を通した。')]};}},
+   /* 7 独身(出会い・恋人ができることも) */
+   { topics:['気になる人との出会い','友人からの紹介','学生時代の再会','婚活パーティー','カフェでの偶然','趣味のサークル','アプリでのマッチング','職場の素敵な人'],
+     build(t,c){const T=c%3;return{need:{rel:'single',minYears:Math.min(yrs[T],2)},title:'出会い：'+t,
+       text:'「'+t+'」。心が少し動いた。',choices:[
+       ch('勇気を出してアプローチ',{rel:'girlfriend',dMen:6},'恋人ができた！💗'),
+       ch('友達として仲良くする',{dMen:5},'良い友人ができた。'),
+       ch('仕事を理由に踏み込まない',{dWp:2,dMen:-4},'恋より仕事を選んだ。'),
+       ch('今はそっとしておく',{dMen:2},'静かに過ごした。')]};}},
+   /* 8 恋人がいるとき */
+   { topics:['記念日の計画','些細な喧嘩','相手の誕生日','二人の小旅行','手料理の振る舞い','将来の話','相手の友人との顔合わせ','すれ違いの悩み'],
+     build(t,c){return{need:{rel:'girlfriend'},title:'恋人と：'+t,
+       text:'恋人との「'+t+'」。どう向き合う？',choices:[
+       ch('全力で大切にする',{dMen:10,dMaxMen:3,money:-100000},'絆が深まった。'),
+       ch('ささやかに気持ちを示す',{dMen:6,money:-30000},'喜んでもらえた。'),
+       ch('仕事を優先してしまう',{dWp:2,dMen:-8},'相手を寂しがらせた…。'),
+       ch('自然体で過ごす',{dMen:4},'穏やかな時間。')]};}},
+   /* 9 既婚 */
+   { topics:['家事の分担','義実家への帰省','家計の相談','結婚記念日','休日の過ごし方','マイホームの夢','配偶者の昇進','二人の将来設計'],
+     build(t,c){return{need:{rel:'married'},title:'家庭で：'+t,
+       text:'配偶者との「'+t+'」。',choices:[
+       ch('家庭を最優先にする',{dMen:10,dMaxMen:3,dSta:-3},'家庭が温かくなった。'),
+       ch('話し合って歩み寄る',{dMen:7},'理解が深まった。'),
+       ch('仕事にかまけてしまう',{dWp:2,dMen:-8},'家庭が少し冷えた…。'),
+       ch('協力してお金を貯める',{money:150000,dMen:2},'将来に備えた。')]};}},
+   /* 10 子供がいるとき */
+   { topics:['子供の発熱','授業参観','反抗期','習い事の送迎','子供の進学','家族旅行','子供の誕生日','育児の悩み'],
+     build(t,c){return{need:{rel:'married',kids:true},title:'子育て：'+t,
+       text:'「'+t+'」。親としてどうする？',choices:[
+       ch('仕事を調整して向き合う',{dMen:11,dMaxMen:3,dSta:-5},'かけがえのない時間。'),
+       ch('できる範囲で関わる',{dMen:6},'なんとか間に合った。'),
+       ch('配偶者に任せて働く',{dWp:2,dMen:-6},'罪悪感が残った…。'),
+       ch('教育費のため奮起する',{money:120000,dSta:-4},'将来のため踏ん張った。')]};}},
+   /* 11 健康(過去の選択でフラグ) */
+   { topics:['人間ドックの結果','歯の治療','ぎっくり腰','花粉症の季節','禁酒の決意','ダイエット','睡眠の改善','運動不足'],
+     build(t,c){const T=c%3;return{need:{minYears:yrs[T]},title:'健康：'+t,
+       text:'「'+t+'」。体と向き合う機会だ。',choices:[
+       {label:'運動を習慣にする',flags:['fitnessFan'],eff:{dMaxSta:5,dSta:-3},log:'健康志向になった。'},
+       ch('食生活を見直す',{dMaxSta:3,dMaxMen:2,money:-30000},'体が整った。'),
+       ch('まず一度しっかり休む',{dSta:12},'回復に努めた。'),
+       ch('気にせず働く',{dWp:1,dSta:-6},'健康より仕事を取った。')]};}},
+   /* 12 キャリア・成長 */
+   { topics:['新技術の勉強','社内勉強会','資格の更新','OSSへの貢献','技術ブログ執筆','メンター制度','異動の打診','スキルの棚卸し'],
+     build(t,c){const T=c%3;return{need:{minYears:yrs[T]},title:'成長：'+t,
+       text:ERA[T]+'、「'+t+'」に取り組む。',choices:[
+       ch('本気で打ち込む',{dWp:3+T,dSta:-5,dMen:-3},'実力が伸びた。'),
+       ch('無理なく続ける',{dWp:2,dMen:-2},'着実に力をつけた。'),
+       ch('情報収集だけする',{dWp:1,dMen:3},'視野が広がった。'),
+       ch('今は見送る',{dMen:3},'無理はしなかった。')]};}},
+   /* 13 日常(条件なし・小ネタ) */
+   { topics:['通勤電車のトラブル','ランチの選択','天気の良い週末','近所付き合い','ネット通販の誘惑','推し活','季節の行事','休日の昼寝','大掃除','カフェ巡り'],
+     build(t,c){return{need:{},title:'日常：'+t,
+       text:'「'+t+'」。ささやかな選択。',choices:[
+       ch('体を休める',{dSta:6},'のんびりした。'),
+       ch('気晴らしする',{dMen:6,money:-20000},'気分転換できた。'),
+       ch('少し勉強する',{dWp:1,dMen:-1},'コツコツ進めた。'),
+       ch('副業で小銭を稼ぐ',{money:50000,dSta:-3},'臨時収入を得た。')]};}},
+   /* 14 過去に「飲み仲間」を選んだ人向けチェーン */
+   { topics:['飲み仲間との再会','上司との酒の席','部署の打ち上げ','常連の店での一杯','旧友との痛飲'],
+     build(t,c){return{need:{flag:'drinker'},title:'酒の縁：'+t,
+       text:'飲み仲間との縁で「'+t+'」に誘われた。',choices:[
+       ch('とことん付き合う',{dMen:8,dSta:-8,money:-40000},'絆は深まったが二日酔い…。'),
+       ch('ほどほどに楽しむ',{dMen:6,dSta:-3,money:-20000},'良い時間だった。'),
+       ch('人脈づくりに徹する',{dWp:2,dMen:2,money:-30000},'仕事の縁につながった。'),
+       ch('今日は断る',{dSta:5},'体を労わった。')]};}},
+   /* 15 過去に「運動」を選んだ人向けチェーン */
+   { topics:['仲間とのランニング','登山の誘い','フットサル大会','早朝のジム','サイクリング'],
+     build(t,c){return{need:{flag:'fitnessFan'},title:'健康の縁：'+t,
+       text:'運動仲間と「'+t+'」へ。',choices:[
+       ch('本気で取り組む',{dMaxSta:6,dSta:-5,dMen:6},'心身ともに鍛えられた。'),
+       ch('楽しく汗を流す',{dSta:4,dMen:7},'いい気分転換。'),
+       ch('仲間と交流を深める',{dMen:6,dWp:1},'人の輪が広がった。'),
+       ch('今日は見送る',{dSta:6},'休養を優先した。')]};}},
+  ];
+  const E=[]; let i=0;
+  while(E.length < 2000){
+    const f=fams[i % fams.length];
+    const k=Math.floor(i / fams.length);
+    const topic=f.topics[k % f.topics.length];
+    const cyc=Math.floor(k / f.topics.length);
+    const ev=f.build(topic, cyc, k);
+    ev.id='g'+i;
+    ev.cond=needCond(ev.need||{});
+    ev.spec=Object.keys(ev.need||{}).length;
+    E.push(ev);
+    i++;
+  }
+  return E;
+}
+const GENERATED = buildEvents();
+// 選択プール: キュレーション(重要な分岐/レア能力)は最優先(spec=100)、生成イベントは条件の多さ順
+const POOL = EVENTS.map(function(e){ e.spec = 100; return e; }).concat(GENERATED);
+
 /* ===================== STATE ===================== */
 let S = null;
 
@@ -833,10 +1005,15 @@ function pickEvent(){
       return crisisEvent();
     }
   }
-  for(const e of EVENTS){
-    if(!S.usedEvents.has(e.id) && e.cond(S)) return e;
+  // 条件を満たす未使用イベントのうち、今の状態に最も合う(条件の多い=specの高い)ものを選ぶ
+  let best=null, bestSpec=-1;
+  for(let idx=0; idx<POOL.length; idx++){
+    const e = POOL[idx];
+    if(S.usedEvents.has(e.id)) continue;
+    if(!e.cond(S)) continue;
+    if(e.spec > bestSpec){ best = e; bestSpec = e.spec; }
   }
-  return FILLERS[S.quarter % FILLERS.length];
+  return best || FILLERS[S.quarter % FILLERS.length];
 }
 
 function crisisEvent(){
