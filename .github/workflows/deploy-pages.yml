@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - claude/overwork-simulation-game-ht5lyr
+      - 'claude/**'   # 改修ブランチへの push でも即時プレビュー公開
   workflow_dispatch:
 
 permissions:
@@ -12,7 +12,7 @@ permissions:
   pages: write
   id-token: write
 
-# 同時デプロイは1つだけ
+# 同時デプロイは1つだけ（後勝ち）
 concurrency:
   group: pages
   cancel-in-progress: true
