@@ -25,7 +25,7 @@
   .row{display:flex; gap:12px; flex-wrap:wrap;}
   .row>*{flex:1; min-width:140px;}
   .seg{display:flex; gap:4px; margin-top:4px;}
-  .seg>i{flex:1; height:12px; border-radius:4px; background:#0a0e14; border:1px solid var(--line);}
+  .seg>i{flex:1; height:12px; border-radius:4px; background:#0a0e14; border:1px solid var(--line); transition:background .35s, border-color .35s;}
   .gauge-label{display:flex; justify-content:space-between; font-size:.85rem;}
   .gauge-label b{font-size:.9rem;}
   .lv0{color:var(--danger);} .lv1{color:var(--men);} .lv2{color:var(--sta);}
@@ -60,8 +60,8 @@
   .care button:hover:not(:disabled){border-color:var(--money); filter:none;}
   .kbar{height:18px; background:#0a0e14; border:1px solid var(--line); border-radius:9px; overflow:hidden; position:relative;}
   .kbar>span{position:absolute; left:0; top:0; height:100%; width:0; transition:width .4s;}
-  #proj-bar{background:linear-gradient(90deg,#1f6feb,#58a6ff); z-index:2;}            /* 現在の進捗 */
-  #proj-bar-proj{background:repeating-linear-gradient(45deg,#e3884122,#e3884122 6px,#e3884155 6px,#e3884155 12px); border-right:2px solid #f0883e; z-index:1;} /* 予想進捗 */
+  #proj-bar-proj{background:#f0883e; z-index:1;}                                      /* 予測進捗(オレンジ・単色) */
+  #proj-bar,#q-bar{background:linear-gradient(90deg,#1f6feb,#58a6ff); z-index:2;}     /* 現在の進捗(青・前面) */
   .kbar .txt{position:absolute; inset:0; text-align:center; font-size:.78rem; line-height:18px; z-index:3;}
   .proj-c{color:#58a6ff;} .proj-p{color:#f0883e;}
   .tag{display:inline-block; font-size:.72rem; padding:1px 8px; border-radius:10px; background:var(--panel2); border:1px solid var(--line); margin-right:5px;}
@@ -127,7 +127,6 @@
     <div class="panel">
       <h2>🎤 入社式の挨拶</h2>
       <p>同期が見守る中、あなたは壇上で意気込みを語ることになった。<br>最初のひと言が、あなたという人間を形づくる。</p>
-      <p class="sub">※ 選んだ意気込みによって初期能力が変わります。</p>
       <div class="choices" id="intro-choices"></div>
     </div>
   </div>
@@ -142,11 +141,11 @@
       <div class="row" style="margin-top:12px;">
         <div>
           <div class="gauge-label"><span>体力</span><b id="sta-lv"></b></div>
-          <div class="seg sta" id="sta-seg"><i></i><i></i><i></i></div>
+          <div class="seg sta" id="sta-seg"><i></i><i></i><i></i><i></i><i></i></div>
         </div>
         <div>
           <div class="gauge-label"><span>メンタル</span><b id="men-lv"></b></div>
-          <div class="seg men" id="men-seg"><i></i><i></i><i></i></div>
+          <div class="seg men" id="men-seg"><i></i><i></i><i></i><i></i><i></i></div>
         </div>
       </div>
       <div class="row" style="margin-top:10px;">
@@ -177,10 +176,18 @@
       </div>
       <div class="preview" id="preview"></div>
 
-      <div class="sub" style="margin-top:12px;">💴 お金で自己投資（働く前に何度でも）</div>
+      <div class="sub" style="margin-top:12px;">💴 お金で自己投資</div>
       <div class="care" id="care"></div>
 
       <button onclick="work()">この四半期を働く ▶</button>
+    </div>
+
+    <!-- QUARTER RESULT (animated) -->
+    <div id="phase-quarter" class="panel hidden">
+      <h2>📊 <span id="q-title"></span></h2>
+      <div class="kbar" style="height:22px; margin-bottom:10px;"><span id="q-bar"></span><div class="txt" id="q-bar-txt" style="line-height:22px;"></div></div>
+      <div id="q-deltas"></div>
+      <button onclick="continueQuarter()">続ける ▶</button>
     </div>
 
     <!-- PROJECT COMPLETE -->
@@ -719,7 +726,7 @@ const EVENTS = [
       {label:'抜けられない重圧に疲れる', eff:{dMen:-6,dSta:-4}, log:'休めない立場に消耗した。'},
     ]},
 
-  { id:'zen_awaken', cond:(s)=>s.years>=5 && !s.abilities.zen && (s.flags.mindful || healthLevel(s.men,s.maxMen)===2), title:'禅の境地', rare:true,
+  { id:'zen_awaken', cond:(s)=>s.years>=5 && !s.abilities.zen && (s.flags.mindful || healthBucket(s.men,s.maxMen)===2), title:'禅の境地', rare:true,
     text:'幾多の修羅場を越え、あなたの心は奇妙なほど凪いでいた。何が起きても、もう動じない。',
     choices:[
       {label:'【覚醒】心を手放し、無の境地へ', grant:'zen', eff:{dMen:6}, log:'《禅の境地》に目覚めた！どんな激務でもメンタルが減りにくくなった。'},
@@ -915,7 +922,7 @@ const EVENTS = [
       {label:'教育費に頭を抱える', eff:{dMen:-5,dWp:2}, log:'お金の現実に直面した。'},
     ]},
 
-  { id:'hospitalized', cond:(s)=>healthLevel(s.sta,s.maxSta)===0 && s.years>=2, title:'過労で入院',
+  { id:'hospitalized', cond:(s)=>healthBucket(s.sta,s.maxSta)===0 && s.years>=2, title:'過労で入院',
     text:'無理がたたり、ついに倒れて入院することになった。',
     choices:[
       {label:'これを機に生活を立て直す', flags:['gym'], eff:{dSta:20,dMaxSta:6,dMen:5,money:-200000}, log:'健康の大切さを骨身に染みた。'},
@@ -1196,8 +1203,8 @@ const FILLERS = [
    選択は「今の状態に最も合うイベント(条件の多いもの)」が優先される。 */
 function needCond(need){
   return function(s){
-    if(need.sta!==undefined && healthLevel(s.sta,s.maxSta)!==need.sta) return false;
-    if(need.men!==undefined && healthLevel(s.men,s.maxMen)!==need.men) return false;
+    if(need.sta!==undefined && healthBucket(s.sta,s.maxSta)!==need.sta) return false;
+    if(need.men!==undefined && healthBucket(s.men,s.maxMen)!==need.men) return false;
     if(need.rel==='rel'){ if(s.relationship==='single') return false; }
     else if(need.rel && s.relationship!==need.rel) return false;
     if(need.kids && s.children<1) return false;
@@ -1512,6 +1519,10 @@ function work(){
   const p = quarterPreview(hours, wknd);
   const proj = S.project;
 
+  // 変化前の値を控える(アニメ表示用)
+  const beforeAcc = proj.accumulated;
+  const beforeSta = S.sta, beforeMen = S.men;
+
   proj.accumulated += p.kousu;
   proj.quartersElapsed += 1;
   proj.earned += p.money;
@@ -1527,6 +1538,55 @@ function work(){
 
   log('第'+S.quarter+'四半期：'+hours+'時間/日・休日'+wknd+'日勤務（収入 '+man(p.money)
       + (expense>0 ? '／家族の出費 '+man(expense) : '') + '）');
+
+  // 結果アニメ表示用に控える
+  S.quarterResult = {
+    pctBefore: progressDisplay(beforeAcc, proj.required),
+    pctAfter:  progressDisplay(proj.accumulated, proj.required),
+    staDelta: S.sta - beforeSta,
+    menDelta: S.men - beforeMen,
+    income: p.money, expense: expense,
+  };
+  showQuarterResult();
+}
+
+// 四半期の結果をアニメーション表示
+function showQuarterResult(){
+  const r = S.quarterResult;
+  showPhase('phase-quarter');
+  document.getElementById('q-title').textContent = '第'+S.quarter+'四半期の結果';
+  const bar = document.getElementById('q-bar');
+  const txt = document.getElementById('q-bar-txt');
+  bar.style.transition = 'none';
+  bar.style.width = r.pctBefore + '%';
+  txt.innerHTML = '進捗 約'+r.pctBefore+'%';
+  void bar.offsetWidth;  // reflow
+  setTimeout(function(){
+    bar.style.transition = 'width .9s ease';
+    bar.style.width = r.pctAfter + '%';
+    const gain = r.pctAfter - r.pctBefore;
+    txt.innerHTML = '進捗 <span class="proj-c">約'+r.pctBefore+'% → 約'+r.pctAfter+'%</span>'
+      + (gain>0 ? ' <span class="proj-p">(+'+gain+'%)</span>' : '');
+  }, 60);
+  const arrow = function(d, name){
+    const a = Math.abs(d);
+    if(d > 0) return '<p class="res-line pos">'+name+' ▲ '+(a>=20?'大きく回復':a>=8?'回復':'少し回復')+'</p>';
+    if(d < 0) return '<p class="res-line neg">'+name+' ▼ '+(a>=20?'大きく減少':a>=8?'減少':'少し減少')+'</p>';
+    return '<p class="res-line">'+name+' 変化なし</p>';
+  };
+  let html = '';
+  html += arrow(r.staDelta, '体力');
+  html += arrow(r.menDelta, 'メンタル');
+  html += '<p class="res-line pos">収入 +'+man(r.income)+'</p>';
+  if(r.expense > 0) html += '<p class="res-line neg">家族の出費 -'+man(r.expense)+'</p>';
+  document.getElementById('q-deltas').innerHTML = html;
+  render();   // 上部の体力・メンタルゲージもアニメで更新
+}
+
+// 結果表示の「続ける」後、過労死/倒産判定・プロジェクト判定・イベントへ
+function continueQuarter(){
+  if(S.over) return;
+  const proj = S.project;
 
   // 過労死判定（不死鳥なら一度だけ復活）
   if(S.sta <= 0){
@@ -1738,7 +1798,7 @@ function afterQuarter(){
 
 /* ===================== SCREENS ===================== */
 function hideAllPhases(){
-  ['phase-play','phase-complete','phase-select','phase-event','phase-evresult']
+  ['phase-play','phase-quarter','phase-complete','phase-select','phase-event','phase-evresult']
     .forEach(id=>document.getElementById(id).classList.add('hidden'));
 }
 function showPhase(id){ hideAllPhases(); document.getElementById(id).classList.remove('hidden'); }
@@ -1823,19 +1883,23 @@ function endingByMoney(){
 }
 
 /* ===================== RENDER ===================== */
-function healthLevel(cur, max){
+function healthLevel(cur, max){    // 表示用 0..4 の5段階
+  const r = cur / max;
+  return r >= 0.8 ? 4 : r >= 0.6 ? 3 : r >= 0.4 ? 2 : r >= 0.2 ? 1 : 0;
+}
+function healthBucket(cur, max){   // イベント条件用 低/中/高 の3段階
   const r = cur / max;
   return r >= 0.66 ? 2 : (r >= 0.33 ? 1 : 0);
 }
 function renderGauge(segId, lvId, cur, max, words){
-  const lv = healthLevel(cur, max);
+  const lv = healthLevel(cur, max);           // 0..4
   const seg = document.getElementById(segId);
   const segs = seg.querySelectorAll('i');
-  seg.classList.toggle('lowfill', lv===0);
+  seg.classList.toggle('lowfill', lv <= 1);   // 下位2段階は赤く
   segs.forEach((s,idx)=> s.classList.toggle('on', idx <= lv));
   const lab = document.getElementById(lvId);
   lab.textContent = words[lv];
-  lab.className = 'lv'+lv;
+  lab.className = lv <= 1 ? 'lv0' : (lv === 2 ? 'lv1' : 'lv2');
 }
 
 function render(){
@@ -1843,8 +1907,8 @@ function render(){
   document.getElementById('ymd').textContent =
     '勤続'+S.years+'年 '+(S.quarter%4+1)+'Q（通算'+(S.quarter+1)+'期目）';
 
-  renderGauge('sta-seg','sta-lv', S.sta, S.maxSta, ['ボロボロ…','まあまあ','絶好調']);
-  renderGauge('men-seg','men-lv', S.men, S.maxMen, ['限界寸前…','やや疲れ','元気']);
+  renderGauge('sta-seg','sta-lv', S.sta, S.maxSta, ['危篤…','ヘトヘト','まあまあ','好調','絶好調']);
+  renderGauge('men-seg','men-lv', S.men, S.maxMen, ['限界寸前…','すり減り気味','普通','良好','元気']);
 
   document.getElementById('wp').textContent = S.workPower;
   document.getElementById('money').textContent = man(S.money);
