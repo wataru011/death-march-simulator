@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>デスマーチ・シミュレーター 〜長時間労働者育成ゲーム〜</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#2d3543;
+    --txt:#e6edf3; --sub:#9aa7b4; --accent:#58a6ff;
+    --sta:#3fb950; --men:#d29922; --wp:#a371f7;
+    --danger:#f85149; --good:#3fb950;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--txt);
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,system-ui,sans-serif;
+    line-height:1.6; -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:760px; margin:0 auto; padding:16px;}
+  h1{font-size:1.35rem; margin:.2em 0; text-align:center;}
+  h2{font-size:1.05rem; margin:.6em 0 .3em; border-left:4px solid var(--accent); padding-left:8px;}
+  .sub{color:var(--sub); font-size:.82rem;}
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:12px 0;}
+  .row{display:flex; gap:12px; flex-wrap:wrap;}
+  .row>*{flex:1; min-width:150px;}
+  /* bars */
+  .bar-label{display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:3px;}
+  .bar{height:14px; background:#0a0e14; border-radius:7px; overflow:hidden; border:1px solid var(--line);}
+  .bar>span{display:block; height:100%; width:0; transition:width .4s ease;}
+  .bar.sta>span{background:linear-gradient(90deg,#2ea043,#3fb950);}
+  .bar.men>span{background:linear-gradient(90deg,#bb8009,#e3b341);}
+  .stat-block{margin-bottom:10px;}
+  .wpline{font-size:1.05rem;}
+  .wpline b{color:var(--wp); font-size:1.3rem;}
+  /* controls */
+  .ctrl{margin:10px 0;}
+  .ctrl label{display:flex; justify-content:space-between; font-size:.9rem; margin-bottom:4px;}
+  .ctrl .val{color:var(--accent); font-weight:bold;}
+  input[type=range]{width:100%; accent-color:var(--accent);}
+  .preview{display:flex; gap:10px; flex-wrap:wrap; font-size:.85rem; margin-top:8px;}
+  .chip{background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:3px 12px;}
+  .chip .pos{color:var(--good);} .chip .neg{color:var(--danger);}
+  button{
+    font-family:inherit; cursor:pointer; border:none; border-radius:10px;
+    padding:11px 16px; font-size:1rem; font-weight:bold; color:#fff;
+    background:var(--accent); transition:filter .15s; width:100%; margin-top:6px;
+  }
+  button:hover{filter:brightness(1.1);}
+  button.ghost{background:var(--panel2); border:1px solid var(--line); color:var(--txt);}
+  .choices button{background:var(--panel2); border:1px solid var(--line); color:var(--txt); text-align:left; margin-top:8px;}
+  .choices button:hover{border-color:var(--accent); filter:none;}
+  .choices button .eff{display:block; font-size:.78rem; color:var(--sub); margin-top:2px;}
+  /* project meter */
+  .kbar{height:18px; background:#0a0e14; border:1px solid var(--line); border-radius:9px; overflow:hidden; position:relative;}
+  .kbar>span{display:block; height:100%; background:linear-gradient(90deg,#1f6feb,#58a6ff); width:0; transition:width .4s;}
+  .kbar .txt{position:absolute; inset:0; text-align:center; font-size:.78rem; line-height:18px;}
+  .tag{display:inline-block; font-size:.72rem; padding:1px 8px; border-radius:10px; background:var(--panel2); border:1px solid var(--line); margin-right:5px;}
+  .tag.sta{color:var(--sta); border-color:var(--sta);}
+  .tag.men{color:var(--men); border-color:var(--men);}
+  .log{font-size:.85rem; max-height:200px; overflow-y:auto;}
+  .log p{margin:.25em 0; padding-left:10px; border-left:2px solid var(--line);}
+  .log .ev{border-left-color:var(--wp);}
+  .log .ok{border-left-color:var(--good);}
+  .log .bad{border-left-color:var(--danger);}
+  .center{text-align:center;}
+  .warn{color:var(--men); font-size:.85rem;}
+  .end-emoji{font-size:3rem; text-align:center; margin:.2em 0;}
+  .hidden{display:none;}
+  .meta{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;}
+  .pill{background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:2px 12px; font-size:.85rem;}
+  .heart{color:#f778ba;}
+  table.help{font-size:.83rem; width:100%; border-collapse:collapse;}
+  table.help td{padding:2px 6px; border-bottom:1px solid var(--line); vertical-align:top;}
+  details{margin-top:8px;} summary{cursor:pointer; color:var(--accent); font-size:.9rem;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- TITLE -->
+  <div id="screen-title">
+    <h1>🏢 デスマーチ・シミュレーター</h1>
+    <p class="center sub">〜 長時間労働者育成ゲーム 〜</p>
+    <div class="panel">
+      <p>あなたはストレート大卒、<b>22歳</b>でソフトウェア会社に入社した新入社員。<br>
+      四半期ごとに働き方を選び、プロジェクトをこなして<b>仕事力</b>を磨いていく。</p>
+      <p>だが——働きすぎれば<b style="color:var(--sta)">体力</b>が尽きて<b style="color:var(--danger)">過労死</b>。
+      心がすり減れば<b style="color:var(--men)">メンタル</b>が折れる。
+      仕事をこなせなければ会社は<b>倒産</b>。<br>
+      恋人や家族との時間も、働きすぎれば失われていく。</p>
+      <p><b>40歳</b>まで生き延びれば——南の島でのんびり暮らせる。</p>
+      <p class="sub">この世界に運（ランダム）は存在しない。すべてはあなたの選択で決まる。人生ってそういうものだからね。</p>
+      <details>
+        <summary>ルール詳細を見る</summary>
+        <table class="help">
+          <tr><td>工数</td><td>(20日＋休日勤務日数)×3ヶ月×労働時間×仕事力。期限内に必要工数を満たせばプロジェクト成功。</td></tr>
+          <tr><td>仕事力</td><td>難しいプロジェクトを完遂するほど大きく上がる。簡単な仕事ではあまり上がらない。</td></tr>
+          <tr><td>体力 / メンタル</td><td>長く働くほど減る。休む日数で回復。プロジェクトにより体力型／メンタル型がある。</td></tr>
+          <tr><td>イベント</td><td>1年(4期)ごとに発生（重複なし）。4択で選ぶと最大値や仕事力が変化。恋人・結婚・子供で分岐。</td></tr>
+          <tr><td>失敗</td><td>必要工数を期限内に満たせないと失敗。<b>2連続失敗で倒産</b>。</td></tr>
+        </table>
+      </details>
+      <button onclick="startGame()">入社する ▶</button>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div id="screen-game" class="hidden">
+    <div class="panel">
+      <div class="meta">
+        <span class="pill">📅 <b id="age">22</b>歳 / <span id="ymd"></span></span>
+        <span class="pill" id="relpill">独身</span>
+      </div>
+      <div class="row" style="margin-top:12px;">
+        <div class="stat-block">
+          <div class="bar-label"><span>体力</span><span id="sta-num"></span></div>
+          <div class="bar sta"><span id="sta-bar"></span></div>
+        </div>
+        <div class="stat-block">
+          <div class="bar-label"><span>メンタル</span><span id="men-num"></span></div>
+          <div class="bar men"><span id="men-bar"></span></div>
+        </div>
+      </div>
+      <div class="wpline">仕事力：<b id="wp"></b></div>
+      <div id="rel-warn" class="warn hidden"></div>
+    </div>
+
+    <!-- PLAY: choose work -->
+    <div id="phase-play" class="panel">
+      <h2>📋 プロジェクト：<span id="proj-name"></span></h2>
+      <div class="sub" id="proj-desc"></div>
+      <div style="margin:8px 0;">
+        <span id="proj-tags"></span>
+      </div>
+      <div class="kbar"><span id="proj-bar"></span><div class="txt" id="proj-ktxt"></div></div>
+      <div class="sub" id="proj-deadline" style="margin-top:4px;"></div>
+
+      <div class="ctrl" style="margin-top:16px;">
+        <label>1日の労働時間 <span class="val"><span id="hours-v"></span> 時間</span></label>
+        <input type="range" id="hours" min="4" max="16" step="1" value="8" oninput="updatePreview()">
+      </div>
+      <div class="ctrl">
+        <label>1ヶ月の休日勤務日数 <span class="val"><span id="wknd-v"></span> 日</span></label>
+        <input type="range" id="wknd" min="0" max="4" step="1" value="0" oninput="updatePreview()">
+      </div>
+
+      <div class="preview" id="preview"></div>
+      <button onclick="work()">この四半期を働く ▶</button>
+    </div>
+
+    <!-- EVENT -->
+    <div id="phase-event" class="panel hidden">
+      <h2>✨ <span id="ev-title"></span></h2>
+      <p id="ev-text"></p>
+      <div class="choices" id="ev-choices"></div>
+    </div>
+
+    <div class="panel log" id="log"></div>
+  </div>
+
+  <!-- ENDING -->
+  <div id="screen-end" class="hidden">
+    <div class="panel center">
+      <div class="end-emoji" id="end-emoji"></div>
+      <h1 id="end-title"></h1>
+      <p id="end-text"></p>
+      <div class="sub" id="end-stats"></div>
+      <button onclick="location.reload()">もう一度プレイする ⟳</button>
+    </div>
+  </div>
+
+  <p class="center sub" style="margin-top:24px;">© デスマーチ・シミュレーター — 完全決定論的・運要素ゼロ</p>
+</div>
+
+<script>
+"use strict";
+
+/* ===================== CONFIG ===================== */
+const CONFIG = {
+  startAge: 22,
+  endAge: 40,                 // 40歳でグッドエンド
+  startStamina: 100,
+  startMental: 100,
+  startWorkPower: 10,
+  baseDrain: 0.35,            // 体力/メンタル消費の基準係数(8h=中立より上、約10hで均衡)
+  restRate: 1.0,              // 休養日1日あたりの回復量
+  marriedBonus: 4,            // 既婚なら毎期メンタル回復ボーナス(家族の支え)
+  gfBonus: 2,                 // 恋人ありのメンタルボーナス
+  childBonus: 2,              // 子供1人あたりのメンタルボーナス
+  successMental: 5,           // プロジェクト成功時のメンタル回復(達成感)
+  failMental: 10,             // 失敗時のメンタルダメージ
+  bankruptcyFails: 2,         // 連続失敗でこの回数に達すると倒産
+  breakupMental: 25,          // 恋人/配偶者がいてメンタルがこれ未満→別れ
+};
+
+/* ===================== PROJECTS (procedural, deterministic) ===================== */
+const PROJECT_PROFILES = [
+  {s:1.3, m:0.8, type:'体力消耗型'},
+  {s:0.8, m:1.3, type:'メンタル消耗型'},
+  {s:1.1, m:1.1, type:'バランス型'},
+  {s:1.4, m:0.7, type:'激務(肉体)型'},
+  {s:0.7, m:1.4, type:'激務(精神)型'},
+];
+const PROJECT_NAMES = [
+  '社内ツール改修','ECサイト構築','スマホアプリ開発','基幹システム刷新',
+  'AIチャットボットPoC','決済基盤マイグレーション','大規模ECリプレイス','金融機関システム保守',
+  'ゲームサーバー開発','物流最適化システム','医療予約システム','SNSアプリ新規開発',
+  '行政手続きDX','在庫管理システム','動画配信基盤','社内DXプラットフォーム',
+  'クラウド移行プロジェクト','大規模データ基盤構築','自動運転制御ソフト','次世代決済システム',
+];
+
+function makeProject(index){
+  const length = 1 + (index % 4);              // 1〜4期
+  const expectedWp = CONFIG.startWorkPower + 2 * index;   // 想定仕事力(順調に成功した場合)
+  const hTarget = Math.min(13, 7 + index * 0.13);         // 想定仕事力で必要な労働時間(序盤楽→終盤過酷)
+  const required = Math.round(expectedWp * length * 60 * hTarget);
+  const prof = PROJECT_PROFILES[index % PROJECT_PROFILES.length];
+  const name = index < PROJECT_NAMES.length
+    ? PROJECT_NAMES[index]
+    : PROJECT_NAMES[index % PROJECT_NAMES.length] + ' 第' + (Math.floor(index/PROJECT_NAMES.length)+1) + '弾';
+  let diff = '★';
+  if(index>=3) diff='★★';
+  if(index>=7) diff='★★★';
+  if(index>=12) diff='★★★★';
+  if(index>=18) diff='★★★★★';
+  return {
+    index, name, length, required,
+    staminaWeight: prof.s, mentalWeight: prof.m, type: prof.type,
+    difficulty: diff,
+    accumulated: 0, quartersElapsed: 0,
+  };
+}
+
+/* ===================== EVENTS ===================== */
+// effects: dMaxSta,dMaxMen,dWp,dSta,dMen, rel:'girlfriend'|'marry'|'child'|'breakup'
+const EVENTS = [
+  {
+    id:'welcome', cond:()=>true,
+    title:'新人歓迎会', text:'部署の歓迎会。あなたはどう振る舞う？',
+    choices:[
+      {label:'先輩に酒を注ぎまくり人脈を作る', eff:{dWp:2, dSta:-5}, log:'人脈を広げた。仕事力が上がった。'},
+      {label:'隅で同期と意気投合する', eff:{dMen:8}, log:'同期と仲良くなり気が楽になった。'},
+      {label:'酔い潰れるまで飲む', eff:{dSta:-12, dMen:5}, log:'記憶を失ったが楽しかったらしい。'},
+      {label:'体調を理由に早退して勉強する', eff:{dWp:3, dMen:-4}, log:'真面目に自己研鑽した。'},
+    ],
+  },
+  {
+    id:'gym', cond:()=>true,
+    title:'健康診断の結果', text:'医者に「このままだと危ないですよ」と言われた。',
+    choices:[
+      {label:'ジムに通って体を鍛える', eff:{dMaxSta:15, dSta:-5}, log:'体力の最大値が上がった！'},
+      {label:'食生活を見直す', eff:{dMaxSta:8, dMaxMen:4}, log:'健康的になった。'},
+      {label:'気にせず仕事に打ち込む', eff:{dWp:3, dSta:-6}, log:'仕事に没頭した。'},
+      {label:'サプリに頼る', eff:{dSta:10}, log:'とりあえず元気が出た気がする。'},
+    ],
+  },
+  {
+    id:'goukon', cond:(s)=>s.relationship==='single',
+    title:'合コンのお誘い', text:'同期から合コンに誘われた。良い出会いがあるかも？',
+    choices:[
+      {label:'積極的に参加してアプローチする', eff:{rel:'girlfriend', dMen:6}, log:'恋人ができた！💗'},
+      {label:'参加するが仕事の話ばかりする', eff:{dWp:2}, log:'出会いはなかったが仕事の刺激に。'},
+      {label:'断って残業する', eff:{dWp:3, dMen:-5}, log:'仕事を優先した。'},
+      {label:'家で寝る', eff:{dSta:12, dMen:4}, log:'しっかり休んだ。'},
+    ],
+  },
+  {
+    id:'cert', cond:()=>true,
+    title:'資格試験のチャンス', text:'難関の技術資格。挑戦すれば市場価値が上がる。',
+    choices:[
+      {label:'睡眠を削って猛勉強する', eff:{dWp:6, dSta:-12, dMen:-8}, log:'資格取得！仕事力が大きく上がった。'},
+      {label:'計画的に少しずつ勉強', eff:{dWp:3, dMen:-3}, log:'無理なく資格を取った。'},
+      {label:'業務に必要な範囲だけ学ぶ', eff:{dWp:2}, log:'実務知識が増えた。'},
+      {label:'今は見送る', eff:{dMen:3}, log:'無理はしないことにした。'},
+    ],
+  },
+  {
+    id:'date', cond:(s)=>s.relationship==='girlfriend',
+    title:'恋人との記念日', text:'付き合って初めての記念日。どう過ごす？',
+    choices:[
+      {label:'有給を取って旅行に行く', eff:{dMaxMen:10, dMen:10, dSta:5}, log:'最高の思い出。メンタルの最大値が上がった！'},
+      {label:'高価なプレゼントを贈る', eff:{dMen:8}, log:'喜んでもらえた。'},
+      {label:'仕事終わりに少しだけ会う', eff:{dMen:2, dWp:1}, log:'忙しい中でも会えた。'},
+      {label:'締め切りを理由にドタキャン', eff:{dWp:3, dMen:-12}, log:'関係に亀裂が入った…。'},
+    ],
+  },
+  {
+    id:'propose', cond:(s)=>s.relationship==='girlfriend',
+    title:'プロポーズ', text:'恋人との関係も深まってきた。結婚を考える時期かも。',
+    choices:[
+      {label:'勇気を出してプロポーズする', eff:{rel:'marry', dMaxMen:12, dMen:10}, log:'結婚した！👰 メンタルの最大値が上がった。'},
+      {label:'もう少し仕事を安定させてから', eff:{dWp:3, dMen:-4}, log:'仕事を優先した。'},
+      {label:'同棲から始める', eff:{dMen:6, dSta:4}, log:'一緒に暮らし始めた。'},
+      {label:'今はその気になれない', eff:{dMen:-3}, log:'関係はそのまま。'},
+    ],
+  },
+  {
+    id:'child', cond:(s)=>s.relationship==='married',
+    title:'家族計画', text:'配偶者と将来について話し合った。',
+    choices:[
+      {label:'子供を授かる', eff:{rel:'child', dMaxMen:8, dMen:12, dSta:-6}, log:'子供が生まれた！👶 守るものができた。'},
+      {label:'共働きでキャリアを優先', eff:{dWp:4}, log:'二人でキャリアを築くことにした。'},
+      {label:'マイホームを買う', eff:{dMaxSta:6, dMen:-6}, log:'家を買い、ローンという責任を背負った。'},
+      {label:'まだ先でいいと話す', eff:{dMen:3}, log:'ゆっくり考えることにした。'},
+    ],
+  },
+  {
+    id:'boss', cond:()=>true,
+    title:'上司との衝突', text:'理不尽な要求をしてくる上司。あなたの選択は？',
+    choices:[
+      {label:'真っ向から反論する', eff:{dWp:2, dMen:-8}, log:'意見を通したが消耗した。'},
+      {label:'黙って従い残業でカバー', eff:{dWp:1, dSta:-10, dMen:-6}, log:'無理を飲み込んだ。'},
+      {label:'うまく受け流す処世術を学ぶ', eff:{dMaxMen:8}, log:'精神的にタフになった。'},
+      {label:'人事に相談する', eff:{dMen:4, dWp:-1}, log:'環境が少し改善した。'},
+    ],
+  },
+  {
+    id:'leader', cond:(s)=>s.years>=3,
+    title:'チームリーダー就任', text:'マネジメントを任されることになった。',
+    choices:[
+      {label:'引き受けて全力で取り組む', eff:{dWp:7, dSta:-8, dMen:-8}, log:'リーダーとして成長した。仕事力が大きく上がった。'},
+      {label:'引き受けるが部下に任せる', eff:{dWp:4, dMen:-2}, log:'うまく委譲した。'},
+      {label:'プレイヤーに専念したいと断る', eff:{dWp:2}, log:'技術を極める道を選んだ。'},
+      {label:'荷が重いと感じ悩む', eff:{dMen:-6}, log:'プレッシャーに苦しんだ。'},
+    ],
+  },
+  {
+    id:'scout', cond:(s)=>s.years>=2,
+    title:'転職のスカウト', text:'好条件の転職オファーが届いた。',
+    choices:[
+      {label:'交渉材料にして今の会社で昇給', eff:{dWp:4, dMen:3}, log:'待遇が改善した。'},
+      {label:'環境を変えるため転職する', eff:{dMaxMen:10, dMen:8, dWp:-2}, log:'心機一転、気持ちが軽くなった。'},
+      {label:'迷った末に残る', eff:{dMen:-4}, log:'現状維持を選んだ。'},
+      {label:'オファーをきっかけにスキルを磨く', eff:{dWp:5, dSta:-6}, log:'市場価値を意識して勉強した。'},
+    ],
+  },
+  {
+    id:'mentalcare', cond:()=>true,
+    title:'メンタルヘルス研修', text:'会社がストレスケアの研修を実施した。',
+    choices:[
+      {label:'真剣に受けてセルフケアを学ぶ', eff:{dMaxMen:14}, log:'メンタルの最大値が上がった！'},
+      {label:'瞑想を習慣にする', eff:{dMaxMen:8, dMen:6}, log:'心が落ち着くようになった。'},
+      {label:'仕事を抜けられてラッキーと休む', eff:{dMen:8, dSta:6}, log:'良い息抜きになった。'},
+      {label:'時間の無駄だと内職する', eff:{dWp:2, dMen:-4}, log:'仕事は進んだが疲れた。'},
+    ],
+  },
+  {
+    id:'sidejob', cond:(s)=>s.years>=2,
+    title:'副業のお誘い', text:'知人から割の良い副業を持ちかけられた。',
+    choices:[
+      {label:'休日を使ってがっつり稼ぐ', eff:{dWp:5, dSta:-12, dMen:-6}, log:'スキルと収入が増えたが疲弊した。'},
+      {label:'無理のない範囲でやる', eff:{dWp:3, dSta:-4}, log:'良い経験になった。'},
+      {label:'本業に集中するため断る', eff:{dMen:3}, log:'本業を大事にした。'},
+      {label:'勉強と割り切って取り組む', eff:{dWp:4, dMen:-3}, log:'新しい技術を習得した。'},
+    ],
+  },
+  {
+    id:'care', cond:(s)=>s.years>=5,
+    title:'親の介護問題', text:'実家の親の体調が思わしくない。',
+    choices:[
+      {label:'介護休暇を取って向き合う', eff:{dSta:-6, dMen:-6, dMaxMen:6}, log:'大変だったが家族と向き合えた。'},
+      {label:'施設やサービスを手配する', eff:{dWp:1, dMen:-4}, log:'プロに任せて仕事を続けた。'},
+      {label:'仕事と両立して頑張る', eff:{dSta:-12, dMen:-10, dWp:1}, log:'両立に身を削った。'},
+      {label:'兄弟に任せる', eff:{dMen:-3}, log:'罪悪感を感じつつ仕事を優先した。'},
+    ],
+  },
+  {
+    id:'conf', cond:(s)=>s.years>=4,
+    title:'技術カンファレンス登壇', text:'大きな勉強会で登壇のオファーが来た。',
+    choices:[
+      {label:'徹夜で資料を作り込み登壇', eff:{dWp:6, dSta:-10, dMen:-4}, log:'登壇は大成功。名前が知られた。'},
+      {label:'手堅い内容で無難にこなす', eff:{dWp:3, dMen:-2}, log:'そつなく発表した。'},
+      {label:'聴講だけして刺激を受ける', eff:{dWp:2, dMen:5}, log:'モチベーションが上がった。'},
+      {label:'緊張で辞退する', eff:{dMen:-4}, log:'チャンスを逃した。'},
+    ],
+  },
+  {
+    id:'vacation', cond:(s)=>s.years>=3,
+    title:'長期休暇のチャンス', text:'有給がたまっている。長期休暇を取れそうだ。',
+    choices:[
+      {label:'海外でリゾート三昧', eff:{dSta:25, dMen:25}, log:'心身ともに完全回復した！'},
+      {label:'家でひたすら寝る', eff:{dSta:30, dMen:10}, log:'体力がしっかり回復した。'},
+      {label:'趣味に没頭する', eff:{dMen:20, dSta:8}, log:'メンタルが大きく回復した。'},
+      {label:'結局仕事のことが気になり出社', eff:{dWp:3, dSta:5}, log:'休めない性分だ…。'},
+    ],
+  },
+  {
+    id:'kids_event', cond:(s)=>s.children>=1,
+    title:'子供の運動会', text:'休日に子供の運動会がある。仕事の締め切りも近い。',
+    choices:[
+      {label:'仕事を片付けて見に行く', eff:{dMaxMen:10, dMen:12, dSta:-6}, log:'最高の笑顔が見られた。心の支えが増えた。'},
+      {label:'少しだけ顔を出す', eff:{dMen:5}, log:'なんとか駆けつけた。'},
+      {label:'リモートで配信を見る', eff:{dWp:1, dMen:-2}, log:'仕事しながら見届けた。'},
+      {label:'締め切り優先で諦める', eff:{dWp:3, dMen:-14}, log:'家族をがっかりさせてしまった…。'},
+    ],
+  },
+  {
+    id:'award', cond:(s)=>s.years>=6,
+    title:'社内表彰', text:'これまでの功績が認められ、表彰されることに。',
+    choices:[
+      {label:'誇りに思い、さらに精進する', eff:{dWp:5, dMen:10}, log:'自信がついた。'},
+      {label:'昇給交渉の材料にする', eff:{dWp:3, dMen:6}, log:'評価を勝ち取った。'},
+      {label:'チームの成果だと還元する', eff:{dMaxMen:10}, log:'信頼を得て心が満たされた。'},
+      {label:'プレッシャーに感じる', eff:{dMen:-5, dWp:2}, log:'期待が重荷になった。'},
+    ],
+  },
+  {
+    id:'startup', cond:(s)=>s.years>=8,
+    title:'独立の誘い', text:'仲間から「一緒に起業しないか」と誘われた。',
+    choices:[
+      {label:'リスクを取って参画', eff:{dWp:8, dSta:-12, dMen:-12}, log:'起業に挑戦。実力は飛躍したが過酷だ。'},
+      {label:'副業として手伝う', eff:{dWp:4, dSta:-6}, log:'本業を続けつつ関わった。'},
+      {label:'応援はするが参加しない', eff:{dMen:3}, log:'安定を選んだ。'},
+      {label:'自分のキャリアを見つめ直す', eff:{dMaxMen:8}, log:'将来を考え、心が整理された。'},
+    ],
+  },
+];
+
+/* ===================== STATE ===================== */
+let S = null;
+
+function startGame(){
+  S = {
+    age: CONFIG.startAge,
+    quarter: 0,           // 通算四半期数(0開始)
+    years: 0,             // 勤続年数
+    maxSta: CONFIG.startStamina, sta: CONFIG.startStamina,
+    maxMen: CONFIG.startMental, men: CONFIG.startMental,
+    workPower: CONFIG.startWorkPower,
+    projIndex: 0,
+    project: makeProject(0),
+    relationship: 'single',  // single|girlfriend|married
+    children: 0,
+    consecFails: 0,
+    usedEvents: new Set(),
+    pendingEvent: null,
+    over: false,
+  };
+  document.getElementById('screen-title').classList.add('hidden');
+  document.getElementById('screen-game').classList.remove('hidden');
+  log('入社しました。社会人生活のスタートです。', 'ok');
+  showPlayPhase();
+  render();
+}
+
+/* ===================== CORE: quarter computation ===================== */
+function quarterPreview(hours, weekendDays){
+  const wp = S.workPower, proj = S.project;
+  const months = 3;
+  const workDays = (20 + weekendDays) * months;
+  const restDays = (10 - weekendDays) * months;   // 月10日の休日のうち、勤務しなかった分
+  const kousu = workDays * hours * wp;
+  const intensity = Math.pow(hours / 8, 1.5);
+  const staDrain = workDays * intensity * proj.staminaWeight * CONFIG.baseDrain;
+  const menDrain = workDays * intensity * proj.mentalWeight  * CONFIG.baseDrain;
+  let recovery = restDays * CONFIG.restRate;
+  // 家族の支え(メンタルのみ)
+  let menSupport = 0;
+  if(S.relationship === 'married') menSupport += CONFIG.marriedBonus;
+  else if(S.relationship === 'girlfriend') menSupport += CONFIG.gfBonus;
+  menSupport += S.children * CONFIG.childBonus;
+  return {
+    kousu: Math.round(kousu),
+    staDelta: Math.round(recovery - staDrain),
+    menDelta: Math.round(recovery - menDrain + menSupport),
+  };
+}
+
+function updatePreview(){
+  const hours = +document.getElementById('hours').value;
+  const wknd = +document.getElementById('wknd').value;
+  document.getElementById('hours-v').textContent = hours;
+  document.getElementById('wknd-v').textContent = wknd;
+  const p = quarterPreview(hours, wknd);
+  const proj = S.project;
+  const after = Math.min(proj.required, proj.accumulated + p.kousu);
+  const pct = Math.round(after / proj.required * 100);
+  const willFinish = (proj.accumulated + p.kousu) >= proj.required;
+  const lastChance = (proj.quartersElapsed + 1) >= proj.length;
+  const fmt = (n)=> (n>=0?'<span class="pos">+'+n+'</span>':'<span class="neg">'+n+'</span>');
+  let html = '';
+  html += '<span class="chip">工数 +'+p.kousu.toLocaleString()+' → 進捗 '+pct+'%</span>';
+  html += '<span class="chip">体力 '+fmt(p.staDelta)+'</span>';
+  html += '<span class="chip">メンタル '+fmt(p.menDelta)+'</span>';
+  if(willFinish) html += '<span class="chip" style="border-color:var(--good);color:var(--good)">✔ 今期で完遂</span>';
+  else if(lastChance) html += '<span class="chip" style="border-color:var(--danger);color:var(--danger)">⚠ 今期で未達なら失敗</span>';
+  document.getElementById('preview').innerHTML = html;
+}
+
+function work(){
+  if(S.over) return;
+  const hours = +document.getElementById('hours').value;
+  const wknd = +document.getElementById('wknd').value;
+  const p = quarterPreview(hours, wknd);
+  const proj = S.project;
+
+  // apply
+  proj.accumulated += p.kousu;
+  proj.quartersElapsed += 1;
+  S.sta = clamp(S.sta + p.staDelta, 0, S.maxSta);
+  S.men = clamp(S.men + p.menDelta, 0, S.maxMen);
+
+  // advance time
+  S.quarter += 1;
+  S.age = CONFIG.startAge + S.quarter / 4;
+  S.years = Math.floor(S.quarter / 4);
+
+  log('第'+S.quarter+'四半期：'+hours+'時間/日・休日勤務'+wknd+'日で働いた。'
+     +'（工数+'+p.kousu.toLocaleString()+'）');
+
+  // death checks first
+  if(S.sta <= 0){ return gameOver('過労死', '💀',
+    '体力が尽き、あなたは帰らぬ人となった。働きすぎだったのだ。仕事ができないなんて、悲しい。'); }
+  if(S.men <= 0){ return gameOver('心が折れた', '🫥',
+    'メンタルが限界を超え、あなたは出社できなくなった。長い休職の末、静かに会社を去った。'); }
+
+  // project resolution
+  if(proj.accumulated >= proj.required){
+    onProjectSuccess();
+  } else if(proj.quartersElapsed >= proj.length){
+    onProjectFail();
+    if(S.over) return;
+  }
+
+  // year-end event (every 4 quarters)
+  if(S.quarter % 4 === 0){
+    const ev = pickEvent();
+    if(ev){ showEventPhase(ev); render(); return; }
+  }
+
+  // good ending
+  if(S.age >= CONFIG.endAge){
+    return gameOver('南の島でのんびり暮らす', '🏝️',
+      '40歳。あなたは数々のデスマーチを生き延びた。会社を辞め、南の島へ。'
+      +'これからは波の音を聞きながら、のんびりと暮らすのだ。お疲れさまでした。');
+  }
+
+  showPlayPhase();
+  render();
+}
+
+function onProjectSuccess(){
+  const proj = S.project;
+  const gain = 1 + Math.floor(proj.length / 2) + Math.floor(proj.index / 16);
+  S.workPower += gain;
+  S.men = clamp(S.men + CONFIG.successMental, 0, S.maxMen);
+  S.consecFails = 0;
+  log('🎉「'+proj.name+'」完遂！仕事力 +'+gain+'（達成感でメンタル回復）', 'ok');
+  nextProject();
+}
+
+function onProjectFail(){
+  const proj = S.project;
+  S.men = clamp(S.men - CONFIG.failMental, 0, S.maxMen);
+  S.consecFails += 1;
+  log('💥「'+proj.name+'」は納期に間に合わず失敗…（連続失敗 '+S.consecFails+'回）', 'bad');
+  if(S.men <= 0){ gameOver('心が折れた','🫥',
+    '失敗の重圧でメンタルが限界に達し、あなたは会社を去った。'); return; }
+  if(S.consecFails >= CONFIG.bankruptcyFails){
+    gameOver('会社倒産','🏚️',
+      'プロジェクトの連続失敗により、会社は倒産してしまった。'
+      +'あなたは職を失った。仕事ができないなんて、悲しい。');
+    return;
+  }
+  nextProject();
+}
+
+function nextProject(){
+  S.projIndex += 1;
+  S.project = makeProject(S.projIndex);
+}
+
+/* ===================== EVENTS ===================== */
+function pickEvent(){
+  // 働きすぎによる別れ(決定論的): 恋人/配偶者がいてメンタルが低いと別れ
+  if((S.relationship === 'girlfriend' || S.relationship === 'married') && S.men < CONFIG.breakupMental){
+    return breakupEvent();
+  }
+  for(const e of EVENTS){
+    if(!S.usedEvents.has(e.id) && e.cond(S)) return e;
+  }
+  // 在庫切れ → 平穏な一年(消費しない)
+  return {
+    id:'_calm', title:'平穏な一年', text:'特に大きな出来事のない一年だった。日々は淡々と過ぎていく。',
+    choices:[
+      {label:'体を休める', eff:{dSta:10}, log:'静かに体を休めた。'},
+      {label:'心を休める', eff:{dMen:10}, log:'心穏やかに過ごした。'},
+      {label:'自己研鑽する', eff:{dWp:2, dMen:-2}, log:'コツコツ勉強した。'},
+      {label:'淡々と働く', eff:{dWp:1}, log:'いつも通りの日々。'},
+    ],
+  };
+}
+
+function breakupEvent(){
+  const isMarried = S.relationship === 'married';
+  const who = isMarried ? '配偶者' : '恋人';
+  return {
+    id:'_breakup', noConsume:true,
+    title: isMarried ? '離婚の危機' : '別れ話',
+    text: '働きすぎですれ違いが続いた。'+who+'が「もう限界」と切り出した。あなたは——',
+    choices:[
+      {label:'仕事は減らせないと正直に話す', eff:{rel:'breakup', dMen:-5}, log:who+'と別れた。仕事を選んだのだ。💔'},
+      {label:'謝るが、結局また残業してしまう', eff:{rel:'breakup', dMen:-8}, log:'謝っても行動は変わらず、別れに至った。💔'},
+      {label:'仕事に没頭して気を紛らわす', eff:{rel:'breakup', dWp:3, dMen:-10}, log:who+'と別れ、仕事に逃げた。💔'},
+      {label:'これを機に働き方を見直すと誓う', eff:{rel:'breakup', dMaxMen:6, dMen:-3}, log:who+'とは別れたが、教訓を得た。💔'},
+    ],
+  };
+}
+
+function showEventPhase(ev){
+  S.pendingEvent = ev;
+  document.getElementById('phase-play').classList.add('hidden');
+  document.getElementById('phase-event').classList.remove('hidden');
+  document.getElementById('ev-title').textContent = ev.title;
+  document.getElementById('ev-text').textContent = ev.text;
+  const box = document.getElementById('ev-choices');
+  box.innerHTML = '';
+  ev.choices.forEach((c, i)=>{
+    const b = document.createElement('button');
+    b.innerHTML = c.label + '<span class="eff">'+effectText(c.eff)+'</span>';
+    b.onclick = ()=> chooseEvent(i);
+    box.appendChild(b);
+  });
+}
+
+function effectText(eff){
+  const parts = [];
+  const sign = (n)=> (n>0?'+'+n:''+n);
+  if(eff.dSta) parts.push('体力'+sign(eff.dSta));
+  if(eff.dMen) parts.push('メンタル'+sign(eff.dMen));
+  if(eff.dMaxSta) parts.push('体力上限'+sign(eff.dMaxSta));
+  if(eff.dMaxMen) parts.push('メンタル上限'+sign(eff.dMaxMen));
+  if(eff.dWp) parts.push('仕事力'+sign(eff.dWp));
+  if(eff.rel==='girlfriend') parts.push('恋人ができる');
+  if(eff.rel==='marry') parts.push('結婚する');
+  if(eff.rel==='child') parts.push('子供が生まれる');
+  if(eff.rel==='breakup') parts.push('別れる');
+  return parts.join(' / ') || '変化なし';
+}
+
+function chooseEvent(i){
+  const ev = S.pendingEvent;
+  const c = ev.choices[i];
+  const eff = c.eff;
+  if(eff.dMaxSta){ S.maxSta += eff.dMaxSta; }
+  if(eff.dMaxMen){ S.maxMen += eff.dMaxMen; }
+  if(eff.dWp){ S.workPower = Math.max(1, S.workPower + eff.dWp); }
+  if(eff.dSta){ S.sta += eff.dSta; }
+  if(eff.dMen){ S.men += eff.dMen; }
+  // relationship transitions
+  if(eff.rel === 'girlfriend') S.relationship = 'girlfriend';
+  if(eff.rel === 'marry') S.relationship = 'married';
+  if(eff.rel === 'child'){ S.relationship = 'married'; S.children += 1; }
+  if(eff.rel === 'breakup') S.relationship = 'single';
+  S.sta = clamp(S.sta, 0, S.maxSta);
+  S.men = clamp(S.men, 0, S.maxMen);
+  if(!ev.noConsume && !ev.id.startsWith('_')) S.usedEvents.add(ev.id);
+  log('【'+ev.title+'】'+c.log, 'ev');
+
+  document.getElementById('phase-event').classList.add('hidden');
+  S.pendingEvent = null;
+
+  // post-event death/ending checks
+  if(S.sta <= 0){ return gameOver('過労死','💀','イベントの無理がたたり、体力が尽きてしまった。'); }
+  if(S.men <= 0){ return gameOver('心が折れた','🫥','心の限界が訪れ、あなたは去っていった。'); }
+  if(S.age >= CONFIG.endAge){
+    return gameOver('南の島でのんびり暮らす','🏝️',
+      '40歳。数々の困難を乗り越え、あなたは南の島へ旅立った。お疲れさまでした。');
+  }
+  showPlayPhase();
+  render();
+}
+
+/* ===================== RENDER ===================== */
+function showPlayPhase(){
+  document.getElementById('phase-event').classList.add('hidden');
+  document.getElementById('phase-play').classList.remove('hidden');
+  // reset sliders default
+  updatePreview();
+}
+
+function render(){
+  document.getElementById('age').textContent = Math.floor(S.age);
+  const q = S.quarter % 4 + 1;
+  document.getElementById('ymd').textContent = '勤続'+S.years+'年 '+(S.quarter%4+1)+'Q（通算'+(S.quarter+1)+'期目）';
+  // stats
+  document.getElementById('sta-num').textContent = Math.round(S.sta)+' / '+S.maxSta;
+  document.getElementById('men-num').textContent = Math.round(S.men)+' / '+S.maxMen;
+  document.getElementById('sta-bar').style.width = Math.max(0,S.sta/S.maxSta*100)+'%';
+  document.getElementById('men-bar').style.width = Math.max(0,S.men/S.maxMen*100)+'%';
+  document.getElementById('wp').textContent = S.workPower;
+  // relationship
+  const relMap = {single:'独身', girlfriend:'恋人あり 💗', married:'既婚 💍'};
+  let relTxt = relMap[S.relationship];
+  if(S.children>0) relTxt += '・子供'+S.children+'人 👶';
+  document.getElementById('relpill').innerHTML = relTxt;
+  // warning
+  const warn = document.getElementById('rel-warn');
+  if((S.relationship==='girlfriend'||S.relationship==='married') && S.men < CONFIG.breakupMental + 15){
+    warn.classList.remove('hidden');
+    warn.textContent = '⚠ 働きすぎで'+(S.relationship==='married'?'家庭':'恋人との関係')+'がギクシャクしている…（メンタルが下がると別れてしまう）';
+  } else { warn.classList.add('hidden'); }
+
+  // project
+  const proj = S.project;
+  document.getElementById('proj-name').textContent = proj.name;
+  document.getElementById('proj-desc').textContent =
+    '難易度 '+proj.difficulty+'｜'+proj.type+'｜納期 '+proj.length+'期';
+  const tagS = '<span class="tag sta">体力消費 ×'+proj.staminaWeight+'</span>';
+  const tagM = '<span class="tag men">メンタル消費 ×'+proj.mentalWeight+'</span>';
+  document.getElementById('proj-tags').innerHTML = tagS + tagM;
+  const pct = Math.min(100, Math.round(proj.accumulated/proj.required*100));
+  document.getElementById('proj-bar').style.width = pct+'%';
+  document.getElementById('proj-ktxt').textContent =
+    Math.round(proj.accumulated).toLocaleString()+' / '+proj.required.toLocaleString()+' 工数 ('+pct+'%)';
+  const remain = proj.length - proj.quartersElapsed;
+  document.getElementById('proj-deadline').textContent =
+    '納期まで残り '+remain+'期'+(remain<=1?'（今期で必要工数に届かないと失敗！）':'');
+
+  updatePreview();
+}
+
+/* ===================== HELPERS ===================== */
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+function log(msg, cls){
+  const el = document.getElementById('log');
+  const p = document.createElement('p');
+  if(cls) p.className = cls;
+  p.textContent = msg;
+  el.insertBefore(p, el.firstChild);
+}
+
+function gameOver(title, emoji, text){
+  S.over = true;
+  document.getElementById('screen-game').classList.add('hidden');
+  const end = document.getElementById('screen-end');
+  end.classList.remove('hidden');
+  document.getElementById('end-emoji').textContent = emoji;
+  document.getElementById('end-title').textContent = title;
+  document.getElementById('end-text').textContent = text;
+  const relMap = {single:'独身', girlfriend:'恋人あり', married:'既婚'};
+  document.getElementById('end-stats').innerHTML =
+    '最終年齢 '+Math.floor(S.age)+'歳｜勤続'+S.years+'年<br>'
+    +'仕事力 '+S.workPower+'｜体力上限 '+S.maxSta+'｜メンタル上限 '+S.maxMen+'<br>'
+    +'完遂プロジェクト '+S.projIndex+'件｜'+relMap[S.relationship]
+    +(S.children>0?'・子供'+S.children+'人':'');
+}
+</script>
+</body>
+</html>
