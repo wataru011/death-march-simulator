@@ -62,7 +62,7 @@
   .kbar{height:18px; background:#0a0e14; border:1px solid var(--line); border-radius:9px; overflow:hidden; position:relative;}
   .kbar>span{position:absolute; left:0; top:0; height:100%; width:0; transition:width .4s;}
   #proj-bar-proj{background:#f0883e; z-index:1;}                                      /* 予測進捗(オレンジ・単色) */
-  #proj-bar,#q-bar,#comp-bar{background:linear-gradient(90deg,#1f6feb,#58a6ff); z-index:2;} /* 現在の進捗(青・前面) */
+  #proj-bar,#comp-bar,#ev-bar{background:linear-gradient(90deg,#1f6feb,#58a6ff); z-index:2;} /* 現在の進捗(青・前面) */
   .kbar .txt{position:absolute; inset:0; text-align:center; font-size:.78rem; line-height:18px; z-index:3; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 3px rgba(0,0,0,.95); font-weight:bold;}
   /* バー凡例(スウォッチで色分け、文字は地色のまま読みやすく) */
   .barlegend{font-size:.74rem; color:var(--sub); margin-top:4px;}
@@ -92,6 +92,15 @@
   table.help td{padding:2px 6px; border-bottom:1px solid var(--line); vertical-align:top;}
   details{margin-top:8px;} summary{cursor:pointer; color:var(--accent); font-size:.9rem;}
   .abilities{font-size:.8rem; margin-top:6px;}
+  .skills-line{font-size:.78rem; color:var(--sub); margin-top:6px;}
+  .skills-line b{color:var(--accent);}
+  .chronicle{text-align:left; max-width:420px; margin:14px auto 0; font-size:.82rem;}
+  .chronicle h3{font-size:.95rem; border-left:4px solid var(--wp); padding-left:8px; margin:.4em 0;}
+  .chronicle .c-item{padding:3px 0 3px 10px; border-left:2px solid var(--line); margin-left:4px;}
+  .chronicle .c-age{color:var(--accent); font-weight:bold; margin-right:6px;}
+  .best{background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:6px 10px; font-size:.8rem; margin-top:8px;}
+  .len-btn{display:inline-block; width:auto; margin:0 3px; padding:5px 12px; font-size:.85rem; background:var(--panel2); border:1px solid var(--line); color:var(--sub); border-radius:8px; cursor:pointer;}
+  .len-btn.on{background:var(--accent); color:#fff; border-color:var(--accent);}
   /* 完了時の紙吹雪/クラッカー演出 */
   #confetti{position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:9999;}
   .confetti-piece{position:absolute; top:-12px; width:9px; height:14px; opacity:.95; will-change:transform;}
@@ -114,7 +123,10 @@
       心がすり減れば<b style="color:var(--men)">メンタル</b>が折れる。
       プロジェクトに失敗し<b style="color:var(--cash)">会社のキャッシュ</b>が尽きれば<b>倒産</b>。<br>
       恋人や家族との時間も、働きすぎれば失われていく。</p>
-      <p><b>40歳</b>まで生き延びれば引退。そのときの<b style="color:var(--money)">貯金額</b>で人生の結末が決まる。</p>
+      <p><b id="goal-age-text">35歳</b>まで生き延びれば引退。そのときの<b style="color:var(--money)">貯金額</b>で人生の結末が決まる。</p>
+      <div style="text-align:center; margin:10px 0; font-size:.9rem;">
+        プレイの長さ：<span id="len-select"></span>
+      </div>
       <details>
         <summary>ルール詳細を見る</summary>
         <table class="help">
@@ -129,6 +141,7 @@
       </details>
       <button onclick="goIntro()">入社する ▶</button>
       <button id="last-result-btn" class="ghost hidden" onclick="showLastResult()" style="margin-top:8px;">📜 前回の結果を見る</button>
+      <div id="title-best" class="best hidden"></div>
     </div>
   </div>
 
@@ -146,6 +159,7 @@
     <div class="panel">
       <div class="meta">
         <span class="pill">📅 <b id="age">22</b>歳 / <span id="ymd"></span></span>
+        <span class="pill" id="econ-pill"></span>
         <span class="pill" id="relpill">独身</span>
       </div>
       <div class="row" style="margin-top:12px;">
@@ -162,7 +176,9 @@
         <span>仕事力 <b id="wp" class="v-wp"></b></span>
         <span>貯金 <b id="money" class="v-money"></b></span>
         <span>会社 <b id="cash" class="v-cash"></b></span>
+        <span id="invest-stat" class="hidden">投資 <b id="invest" class="v-cash"></b></span>
       </div>
+      <div id="skills-line" class="skills-line"></div>
       <div id="abilities" class="abilities"></div>
       <div id="rel-warn" class="warn hidden"></div>
     </div>
@@ -189,16 +205,11 @@
 
       <button onclick="work()">この四半期を働く ▶</button>
 
-      <div class="sub" style="margin-top:14px;">💴 お金で自己投資</div>
+      <div class="sub" style="margin-top:14px;">💴 お金で自己投資（体力・メンタル）</div>
       <div class="care" id="care"></div>
-    </div>
 
-    <!-- QUARTER RESULT (animated) -->
-    <div id="phase-quarter" class="panel hidden">
-      <h2>📊 <span id="q-title"></span></h2>
-      <div class="kbar" style="height:22px; margin-bottom:10px;"><span id="q-bar"></span><div class="txt" id="q-bar-txt" style="line-height:22px;"></div></div>
-      <div id="q-deltas"></div>
-      <button onclick="proceedToEvent()">続ける ▶</button>
+      <div class="sub" style="margin-top:12px;">📈 資産運用 <span id="invest-info"></span></div>
+      <div class="care" id="invest-buttons"></div>
     </div>
 
     <!-- PROJECT COMPLETE -->
@@ -207,7 +218,15 @@
       <div class="kbar" style="height:22px; margin-bottom:8px;"><span id="comp-bar"></span><div class="txt" id="comp-bar-txt" style="line-height:22px;"></div></div>
       <div id="comp-deltas"></div>
       <div id="comp-body"></div>
-      <button onclick="goToSelect()" id="comp-btn">次のプロジェクトを選ぶ ▶</button>
+      <button id="comp-btn" onclick="goToSelect()">次のプロジェクトを選ぶ ▶</button>
+    </div>
+
+    <!-- SKILL ALLOCATION -->
+    <div id="phase-skill" class="panel hidden">
+      <h2>🎓 スキル習得</h2>
+      <p class="sub">プロジェクトを完遂して<b id="sp-count"></b>ポイント獲得。仕事力を特化させよう。</p>
+      <div class="choices" id="skill-choices"></div>
+      <button onclick="goToSelect()">決定して次へ ▶</button>
     </div>
 
     <!-- PROJECT SELECT -->
@@ -217,19 +236,22 @@
       <div id="opt-B" class="opt-card" onclick="chooseProject(1)"></div>
     </div>
 
-    <!-- EVENT -->
+    <!-- TURN: 四半期結果(任意)＋イベント＋結果 を1画面に統合 -->
     <div id="phase-event" class="panel hidden">
+      <div id="ev-quarter" class="hidden">
+        <h2>📊 第<span id="ev-q-num"></span>四半期の結果</h2>
+        <div class="kbar" style="height:22px; margin-bottom:8px;"><span id="ev-bar"></span><div class="txt" id="ev-bar-txt" style="line-height:22px;"></div></div>
+        <div id="ev-deltas" style="margin-bottom:10px;"></div>
+        <hr style="border:none;border-top:1px solid var(--line);margin:10px 0;">
+      </div>
       <h2>✨ <span id="ev-title"></span></h2>
       <p id="ev-text"></p>
       <div class="choices" id="ev-choices"></div>
-    </div>
-
-    <!-- EVENT RESULT -->
-    <div id="phase-evresult" class="panel hidden">
-      <h2>📣 結果</h2>
-      <p id="evr-log"></p>
-      <div id="evr-effects"></div>
-      <button onclick="afterQuarter()">続ける ▶</button>
+      <div id="ev-result" class="hidden">
+        <p id="evr-log"></p>
+        <div id="evr-effects"></div>
+        <button onclick="afterQuarter()">▶ 次の四半期へ</button>
+      </div>
     </div>
 
     <div class="panel log" id="log"></div>
@@ -242,6 +264,7 @@
       <h1 id="end-title"></h1>
       <p id="end-text"></p>
       <div class="sub" id="end-stats"></div>
+      <div id="end-chronicle"></div>
       <button onclick="location.reload()">もう一度プレイする ⟳</button>
     </div>
   </div>
@@ -262,6 +285,13 @@ const CONFIG = {
   successMental: 5, failMental: 8,
   moneyRate: 300,
   profitShareRate: 0.005,   // 毎期、会社キャッシュのこの割合が業績連動ボーナスとして貯金に入る
+  // 仕事力スキルツリー(各レベルの効果と上限)
+  skillCap: 6,
+  skill: { speed:0.05, tough:0.04, nego:0.06, mgmtKousu:0.30 },
+  // 景気サイクル(8年周期・報酬と会社利益に乗る倍率) と 資産運用(四半期リターン)
+  econCycle: [1.00, 1.10, 1.20, 1.10, 1.00, 0.90, 0.80, 0.90],
+  econReturn: { boom:0.05, normal:0.015, bust:-0.04 },   // 投資の四半期リターン(景気連動)
+  investUnit: 1000000,
   // 毎四半期の生活/家族の出費。独身は出費が無い代わりにメンタル回復が遅い(下記係数)
   expense: { girlfriend: 150000, married: 300000, perChild: 150000 },
   singleMenRecovery: 0.8,
@@ -1400,8 +1430,45 @@ function newState(){
     usedEvents: new Set(), flags: {},
     abilities: { phoenix:false, genius:false, buyout:false, zen:false, ironbody:false, charisma:false },
     phoenixUsed: false, president: false,
+    skills: { speed:0, tough:0, nego:0, mgmt:0 }, skillPoints: 0,
+    investments: 0,
+    partnerName: '', rivalName: '', mentorName: '',
+    chronicle: [],
     options: null, pendingEvent: null, projectEnded: null, over: false,
   };
+}
+
+/* ===================== 人生年譜 ===================== */
+function chron(text){
+  if(!S.chronicle) S.chronicle = [];
+  S.chronicle.push({ age: Math.floor(S.age), q: S.quarter, text: text });
+}
+
+/* ===================== 景気・資産運用 ===================== */
+function econMult(){ return CONFIG.econCycle[S.years % CONFIG.econCycle.length]; }
+function econLabel(){ const m = econMult(); return m >= 1.1 ? '好況' : (m <= 0.9 ? '不況' : '普通'); }
+function econReturnRate(){ const m = econMult(); return m >= 1.1 ? CONFIG.econReturn.boom : (m <= 0.9 ? CONFIG.econReturn.bust : CONFIG.econReturn.normal); }
+function netWorth(){ return S.money + (S.investments || 0); }
+
+/* 恋人の名前(決定論的・出会うたび巡回) */
+const PARTNER_NAMES = ['美咲','由衣','彩','沙織','遥','千尋','茜','楓','奈々','陽菜','詩織','麻衣'];
+const RIVAL_NAMES = ['橘','黒木','財前','藤堂','一ノ瀬','神崎'];
+const MENTOR_NAMES = ['室田さん','鬼塚さん','南部さん','和泉さん','榊さん'];
+function pickName(){ return PARTNER_NAMES[(S.quarter + S.children) % PARTNER_NAMES.length]; }
+
+let selectedEndAge = 35;
+function renderLenSelect(){
+  const box = document.getElementById('len-select');
+  if(!box) return;
+  const opts = [{a:30,l:'短編'},{a:35,l:'標準'},{a:40,l:'長編'}];
+  box.innerHTML = '';
+  opts.forEach(function(o){
+    const b = document.createElement('span');
+    b.className = 'len-btn' + (selectedEndAge===o.a ? ' on' : '');
+    b.textContent = o.l + '('+o.a+'歳)';
+    b.onclick = function(){ selectedEndAge = o.a; document.getElementById('goal-age-text').textContent = o.a+'歳'; renderLenSelect(); };
+    box.appendChild(b);
+  });
 }
 
 function goIntro(){
@@ -1421,6 +1488,7 @@ function goIntro(){
 }
 
 function startGame(greetIdx){
+  CONFIG.endAge = selectedEndAge;   // 選んだ長さを反映
   S = newState();
   const g = GREETINGS[greetIdx];
   const m = g.mod;
@@ -1432,6 +1500,7 @@ function startGame(greetIdx){
 
   document.getElementById('screen-intro').classList.add('hidden');
   document.getElementById('screen-game').classList.remove('hidden');
+  chron('🎤 22歳で入社（'+g.label+'）');
   log('入社しました。「'+g.label+'」'+g.log, 'ok');
   log('最初の案件「'+S.project.name+'」が割り当てられた。'+S.project.brief, 'ev');
   showPlay();
@@ -1441,12 +1510,16 @@ function startGame(greetIdx){
 /* ===================== QUARTER COMPUTATION ===================== */
 function quarterPreview(hours, weekendDays){
   const wp = S.workPower, proj = S.project, months = 3;
+  const sk = S.skills || {speed:0,tough:0,nego:0,mgmt:0};
   const workDays = (20 + weekendDays) * months;
   const restDays = (10 - weekendDays) * months;
   const manHours = workDays * hours;
-  const kousu = workDays * hours * wp;
+  // スキル: 速度=工数効率↑, 管理=部下が肩代わりする工数
+  const kousu = workDays * hours * wp * (1 + sk.speed * CONFIG.skill.speed)
+              + sk.mgmt * CONFIG.skill.mgmtKousu * workDays * wp;
   const intensity = Math.pow(hours / 8, 1.5);
-  const staDrain = workDays * intensity * proj.staminaWeight * CONFIG.baseDrain;
+  // スキル: タフネス=体力消耗↓
+  const staDrain = workDays * intensity * proj.staminaWeight * CONFIG.baseDrain * (1 - sk.tough * CONFIG.skill.tough);
   let menDrain = workDays * intensity * proj.mentalWeight  * CONFIG.baseDrain;
   // 《天才》: 仕事力が高いのに簡単な案件だと退屈で心がすり減る
   let boredom = 0;
@@ -1462,7 +1535,8 @@ function quarterPreview(hours, weekendDays){
   else if(S.relationship === 'girlfriend') menSupport += CONFIG.gfBonus;
   else menRecMult = CONFIG.singleMenRecovery;   // 独身はメンタル回復が遅い
   menSupport += S.children * CONFIG.childBonus;
-  let pay = proj.pay * (S.president ? 1.3 : 1.0);
+  // スキル交渉=報酬↑, 景気=報酬倍率
+  let pay = proj.pay * (S.president ? 1.3 : 1.0) * (1 + sk.nego * CONFIG.skill.nego) * econMult();
   const wage = Math.round(manHours * pay * (0.6 + wp * 0.02) * CONFIG.moneyRate);
   const bonus = Math.round(S.companyCash * CONFIG.profitShareRate);   // 業績連動ボーナス
   return {
@@ -1526,7 +1600,62 @@ function buyCare(key){
   if(c.maxSta){ S.maxSta += c.maxSta; S.sta += c.maxSta; }
   if(c.maxMen){ S.maxMen += c.maxMen; S.men += c.maxMen; }
   log('💴 '+c.label+'にお金を使った（'+man(cost)+'）', 'ok');
+  sfx('coin');
   render();
+}
+
+/* ===================== 資産運用 ===================== */
+function renderInvest(){
+  const info = document.getElementById('invest-info');
+  const r = econReturnRate();
+  info.innerHTML = '景気：<b style="color:'+(econMult()>=1.1?'var(--sta)':econMult()<=0.9?'var(--danger)':'var(--sub)')+'">'+econLabel()
+    + '（運用利回り '+(r>0?'+':'')+(r*100).toFixed(1)+'%/期）</b>　投資中：'+man(S.investments||0);
+  const box = document.getElementById('invest-buttons');
+  box.innerHTML = '';
+  const u = CONFIG.investUnit;
+  const mk = (label, fn, disabled)=>{ const b=document.createElement('button'); b.innerHTML=label; b.disabled=disabled; b.onclick=fn; box.appendChild(b); };
+  mk(man(u)+'を投資', ()=>invest(u), S.money < u);
+  mk(man(u*5)+'を投資', ()=>invest(u*5), S.money < u*5);
+  mk('全額引き出す', ()=>withdraw(), (S.investments||0) <= 0);
+}
+function invest(amount){
+  if(S.money < amount) return;
+  S.money -= amount; S.investments = (S.investments||0) + amount;
+  log('📈 '+man(amount)+'を投資に回した。', 'ok'); sfx('coin'); render();
+}
+function withdraw(){
+  if(!S.investments) return;
+  log('📈 投資 '+man(S.investments)+'を引き出した。', 'ok');
+  S.money += S.investments; S.investments = 0; sfx('coin'); render();
+}
+
+/* ===================== スキル習得 ===================== */
+const SKILL_DEFS = [
+  { key:'speed', name:'⚡ スピード', desc:'工数効率↑（同じ時間でより進む）' },
+  { key:'tough', name:'💪 タフネス', desc:'体力の消耗↓' },
+  { key:'nego',  name:'🤝 交渉',     desc:'報酬↑' },
+  { key:'mgmt',  name:'👔 マネジメント', desc:'部下が工数を肩代わり' },
+];
+function goToSkill(){ showPhase('phase-skill'); renderSkillPhase(); }
+function renderSkillPhase(){
+  document.getElementById('sp-count').textContent = S.skillPoints;
+  const box = document.getElementById('skill-choices');
+  box.innerHTML = '';
+  SKILL_DEFS.forEach(function(s){
+    const lv = S.skills[s.key];
+    const maxed = lv >= CONFIG.skillCap;
+    const b = document.createElement('button');
+    b.innerHTML = s.name + ' <b>Lv'+lv+'</b>' + (maxed?'（MAX）':'') + '<span class="eff" style="display:block;font-size:.78rem;color:var(--sub);">'+s.desc+'</span>';
+    b.disabled = (S.skillPoints <= 0) || maxed;
+    b.onclick = function(){ spendSkill(s.key); };
+    box.appendChild(b);
+  });
+}
+function spendSkill(key){
+  if(S.skillPoints <= 0 || S.skills[key] >= CONFIG.skillCap) return;
+  S.skills[key]++; S.skillPoints--;
+  sfx('levelup');
+  renderSkillPhase(); render();
 }
 
 /* ===================== WORK ===================== */
@@ -1546,6 +1675,12 @@ function work(){
   S.money += p.money;
   const expense = quarterlyExpense();
   if(expense > 0) S.money = Math.max(0, S.money - expense);
+  // 資産運用の損益(景気連動)
+  let invGain = 0;
+  if(S.investments > 0){
+    invGain = Math.round(S.investments * econReturnRate());
+    S.investments = Math.max(0, S.investments + invGain);
+  }
   S.sta = clamp(S.sta + p.staDelta, 0, S.maxSta);
   S.men = clamp(S.men + p.menDelta, 0, S.maxMen);
 
@@ -1555,7 +1690,11 @@ function work(){
 
   log('第'+S.quarter+'四半期：'+hours+'時間/日・休日'+wknd+'日勤務（収入 '+man(p.money)
       + (p.bonus>0 ? '／業績ボーナス含む' : '')
-      + (expense>0 ? '／家族の出費 '+man(expense) : '') + '）');
+      + (expense>0 ? '／家族の出費 '+man(expense) : '')
+      + (invGain!==0 ? '／運用 '+(invGain>0?'+':'')+man(invGain) : '') + '）');
+
+  // 誕生日(年の節目)
+  if(S.quarter % 4 === 0){ log('🎂 '+Math.floor(S.age)+'歳になった。', 'ok'); sfx('birthday'); }
 
   S.quarterResult = {
     pctBefore: progressDisplay(beforeAcc, proj.required),
@@ -1596,10 +1735,9 @@ function work(){
 
   S.pendingEvent = pickEvent();
 
-  // プロジェクト完了/失敗なら完了画面に進捗・体力メンタル増減をまとめて表示。
-  // 継続中なら四半期結果アニメを表示してからイベントへ。
+  // 完了/失敗→完了画面。継続中→四半期結果とイベントを1画面に統合表示。
   if(S.projectEnded){ showComplete(); }
-  else { showQuarterResult(); }
+  else { showEvent(true); }
   render();
 }
 
@@ -1631,21 +1769,6 @@ function quarterDeltaHTML(q){
   return h;
 }
 
-// 継続中の四半期: 結果アニメ
-function showQuarterResult(){
-  const r = S.quarterResult;
-  showPhase('phase-quarter');
-  document.getElementById('q-title').textContent = '第'+S.quarter+'四半期の結果';
-  animateBar('q-bar','q-bar-txt', r.pctBefore, r.pctAfter);
-  document.getElementById('q-deltas').innerHTML = quarterDeltaHTML(r);
-  render();   // 上部の体力・メンタルゲージもアニメで更新
-}
-function proceedToEvent(){
-  if(S.over) return;
-  showEvent();
-  render();
-}
-
 // 完了時の紙吹雪/クラッカー演出(視覚効果のみ)
 function launchConfetti(){
   const box = document.getElementById('confetti');
@@ -1667,16 +1790,43 @@ function launchConfetti(){
   setTimeout(function(){ pop.remove(); }, 1100);
 }
 
+/* ===================== 効果音(WebAudioで合成・音源ファイル不要) ===================== */
+let _actx = null;
+function sfx(kind){
+  try{
+    if(!_actx){ const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return; _actx = new AC(); }
+    const ctx = _actx; const now = ctx.currentTime;
+    const beep = function(freq, start, dur, type, vol){
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type || 'sine'; o.frequency.value = freq;
+      g.gain.setValueAtTime(0, now+start);
+      g.gain.linearRampToValueAtTime(vol||0.18, now+start+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, now+start+dur);
+      o.connect(g); g.connect(ctx.destination); o.start(now+start); o.stop(now+start+dur+0.02);
+    };
+    if(kind==='success'){ [523,659,784,1047].forEach((f,i)=>beep(f, i*0.09, 0.25,'triangle',0.16)); }
+    else if(kind==='levelup'){ [659,880].forEach((f,i)=>beep(f, i*0.08, 0.2,'square',0.12)); }
+    else if(kind==='coin'){ beep(988,0,0.07,'square',0.12); beep(1319,0.07,0.12,'square',0.12); }
+    else if(kind==='fail'){ beep(220,0,0.3,'sawtooth',0.14); beep(165,0.12,0.4,'sawtooth',0.14); }
+    else if(kind==='death'){ [330,262,196,131].forEach((f,i)=>beep(f, i*0.16, 0.5,'sawtooth',0.16)); }
+    else if(kind==='click'){ beep(440,0,0.05,'sine',0.08); }
+    else if(kind==='birthday'){ beep(784,0,0.12,'triangle',0.12); beep(1047,0.12,0.18,'triangle',0.12); }
+  }catch(e){}
+}
+
 function resolveSuccess(){
   const proj = S.project;
   const gain = 1 + Math.floor(proj.length/2) + Math.floor(proj.index/16) + (proj.wpBonus||0);
   S.workPower += gain;
   S.men = clamp(S.men + CONFIG.successMental, 0, S.maxMen);
-  const revenue = Math.round(proj.contract * CONFIG.cashWinRate);
+  const revenue = Math.round(proj.contract * CONFIG.cashWinRate * econMult());  // 景気連動
   S.companyCash += revenue;
+  const sp = 1 + (proj.variant === 1 ? 1 : 0);   // 高難度案件は+2
+  S.skillPoints += sp;
   const overflow = proj.accumulated - proj.required;
-  S.projectEnded = { success:true, name:proj.name, gain, overflow, earned:proj.earned, revenue };
-  log('🎉「'+proj.name+'」完遂！仕事力 +'+gain+'（会社に利益 '+man(revenue)+'）', 'ok');
+  S.projectEnded = { success:true, name:proj.name, gain, overflow, earned:proj.earned, revenue, sp };
+  log('🎉「'+proj.name+'」完遂！仕事力 +'+gain+'／スキルP +'+sp+'（会社に利益 '+man(revenue)+'）', 'ok');
+  sfx('success');
 }
 
 function resolveFail(){
@@ -1686,6 +1836,7 @@ function resolveFail(){
   S.companyCash -= loss;
   S.projectEnded = { success:false, name:proj.name, earned:proj.earned, loss };
   log('💥「'+proj.name+'」失敗…会社のキャッシュが '+man(loss)+' 減った', 'bad');
+  sfx('fail');
   if(S.men <= 0){ gameOver('心が折れた','🫥','失敗の重圧でメンタルが限界に達し、あなたは会社を去った。'); return; }
   if(S.companyCash <= 0){
     // 倒産。ただし《買収の野心》＋資金があれば社長就任
@@ -1694,6 +1845,7 @@ function resolveFail(){
       S.companyCash = CONFIG.buyoutRecap;
       S.president = true;
       S.projectEnded.buyout = true;
+      chron('🏛️ 会社を買収し社長に就任');
       log('🏛️ 倒産寸前の会社を私財('+man(CONFIG.buyoutCost)+')で買収し、あなたは社長に就任した！', 'rare');
     } else {
       gameOver('会社倒産','🏚️',
@@ -1752,19 +1904,32 @@ function breakupEvent(){
   };
 }
 
-function showEvent(){
+// withQuarter=true なら上部に四半期結果(進捗バー＋体力メンタル増減)も表示
+function showEvent(withQuarter){
   const ev = S.pendingEvent;
   showPhase('phase-event');
+  const qblock = document.getElementById('ev-quarter');
+  if(withQuarter && S.quarterResult){
+    qblock.classList.remove('hidden');
+    document.getElementById('ev-q-num').textContent = S.quarter;
+    animateBar('ev-bar','ev-bar-txt', S.quarterResult.pctBefore, S.quarterResult.pctAfter);
+    document.getElementById('ev-deltas').innerHTML = quarterDeltaHTML(S.quarterResult);
+  } else {
+    qblock.classList.add('hidden');
+  }
+  document.getElementById('ev-result').classList.add('hidden');
+  const choices = document.getElementById('ev-choices');
+  choices.classList.remove('hidden');
   document.getElementById('ev-title').textContent = ev.title;
   document.getElementById('ev-text').textContent = ev.text;
-  const box = document.getElementById('ev-choices');
-  box.innerHTML = '';
+  choices.innerHTML = '';
   ev.choices.forEach((c, i)=>{
     const b = document.createElement('button');
     b.textContent = c.label;
     b.onclick = ()=> chooseEvent(i);
-    box.appendChild(b);
+    choices.appendChild(b);
   });
+  render();
 }
 
 function chooseEvent(i){
@@ -1779,17 +1944,24 @@ function chooseEvent(i){
   if(eff.dSta)    S.sta += eff.dSta;
   if(eff.dMen)    S.men += eff.dMen;
   if(eff.money)   S.money = Math.max(0, S.money + eff.money);
-  if(eff.rel === 'girlfriend') S.relationship = 'girlfriend';
-  if(eff.rel === 'marry')      S.relationship = 'married';
-  if(eff.rel === 'child'){ S.relationship = 'married'; S.children += 1; }
-  if(eff.rel === 'breakup'){ S.relationship = 'single'; S.relStrain = 0; }
-  if(c.flags) c.flags.forEach(f=> S.flags[f] = true);
+  if(eff.rel === 'girlfriend'){ S.relationship = 'girlfriend'; S.partnerName = pickName(); chron('💗 '+S.partnerName+'さんと交際開始'); }
+  if(eff.rel === 'marry'){ S.relationship = 'married'; chron('💍 '+(S.partnerName||'パートナー')+'さんと結婚'); }
+  if(eff.rel === 'child'){ S.relationship = 'married'; S.children += 1; chron('👶 第'+S.children+'子が誕生'); }
+  if(eff.rel === 'breakup'){ chron('💔 '+(S.partnerName||'パートナー')+'さんと別れた'); S.relationship = 'single'; S.relStrain = 0; S.partnerName = ''; }
+  if(c.flags) c.flags.forEach(function(f){
+    S.flags[f] = true;
+    if(f==='rival' && !S.rivalName){ S.rivalName = RIVAL_NAMES[S.quarter % RIVAL_NAMES.length]; chron('🔥 好敵手「'+S.rivalName+'」と出会う'); }
+    if(f==='mentor' && !S.mentorName){ S.mentorName = MENTOR_NAMES[S.quarter % MENTOR_NAMES.length]; chron('🎓 師匠「'+S.mentorName+'」に弟子入り'); }
+  });
   // 恋愛危機の strain 処理
   if(c.resetStrain) S.relStrain = 0;
   if(c.strain) S.relStrain += c.strain;
   // レア能力付与
   let granted = null;
-  if(c.grant){ S.abilities[c.grant] = true; granted = c.grant; }
+  if(c.grant){ S.abilities[c.grant] = true; granted = c.grant;
+    const an = { phoenix:'🔥不死鳥', genius:'🧠天才', buyout:'🏛️買収の野心', zen:'🧘禅の境地', ironbody:'💪鉄の肉体', charisma:'🤝人望' };
+    chron('✨ レア能力『'+an[c.grant]+'』に覚醒'); sfx('levelup'); }
+  if(eff.money) sfx('coin');
 
   S.sta = clamp(S.sta, 0, S.maxSta);
   S.men = clamp(S.men, 0, S.maxMen);
@@ -1800,8 +1972,10 @@ function chooseEvent(i){
   render();
 }
 
+// 同じイベント画面内に結果をインライン表示(選択肢を結果に差し替え)
 function showResult(ev, c, eff, before, granted){
-  showPhase('phase-evresult');
+  document.getElementById('ev-choices').classList.add('hidden');
+  document.getElementById('ev-result').classList.remove('hidden');
   document.getElementById('evr-log').textContent = c.log;
   const lines = [];
   const qual = (d, name)=>{
@@ -1841,11 +2015,11 @@ function afterQuarter(){
 
 /* ===================== SCREENS ===================== */
 function hideAllPhases(){
-  ['phase-play','phase-quarter','phase-complete','phase-select','phase-event','phase-evresult']
+  ['phase-play','phase-complete','phase-skill','phase-select','phase-event']
     .forEach(id=>document.getElementById(id).classList.add('hidden'));
 }
 function showPhase(id){ hideAllPhases(); document.getElementById(id).classList.remove('hidden'); }
-function showPlay(){ showPhase('phase-play'); updatePreview(); renderCare(); }
+function showPlay(){ showPhase('phase-play'); updatePreview(); renderCare(); renderInvest(); }
 
 function showComplete(){
   const r = S.projectEnded;
@@ -1874,6 +2048,10 @@ function showComplete(){
     if(r.buyout) html += '<p class="res-line rare">🏛️ 倒産寸前の会社を買収し、社長に就任した！</p>';
     body.innerHTML = html;
   }
+  // スキルポイントがあれば習得画面へ
+  const btn = document.getElementById('comp-btn');
+  if(S.skillPoints > 0){ btn.textContent = '🎓 スキルを習得 ▶'; btn.setAttribute('onclick','goToSkill()'); }
+  else { btn.textContent = '次のプロジェクトを選ぶ ▶'; btn.setAttribute('onclick','goToSelect()'); }
 }
 
 function goToSelect(){
@@ -1900,30 +2078,33 @@ function chooseProject(i){
   S.project = S.options[i];
   S.options = null;
   log('「'+S.project.name+'」に着手した。'+S.project.brief, 'ev');
-  showEvent();
+  showEvent(false);   // 完了画面で四半期結果は表示済みなのでイベントのみ
   render();
 }
 
 /* ===================== ENDINGS ===================== */
 function endingByMoney(){
+  if(S.investments){ S.money += S.investments; S.investments = 0; }  // 投資を清算
   const m = S.money;
+  const age = Math.floor(S.age) + '歳。';
   const pre = S.president ? 'オーナー社長として、' : '';
   const survived = S.phoenixUsed ? '一度は過労死の淵から蘇り、' : '';
-  if(m >= CONFIG.endRich){
+  const scale = (CONFIG.endAge - CONFIG.startAge) / 18;   // 短い設定ほど閾値も比例して下げる
+  if(m >= CONFIG.endRich * scale){
     gameOver('南の島で悠々自適','🏝️👑',
-      '40歳。'+survived+pre+'莫大な貯金を手に、あなたは南の島に豪邸を建てた。'
+      age+survived+pre+'莫大な貯金を手に、あなたは南の島に豪邸を建てた。'
       +'もう二度と働く必要はない。プールサイドで、これまでの激闘を懐かしく思い返す。最高の人生だった。');
-  } else if(m >= CONFIG.endWealthy){
+  } else if(m >= CONFIG.endWealthy * scale){
     gameOver('南の島でのんびり暮らす','🏝️',
-      '40歳。'+survived+pre+'十分な蓄えを得て、あなたは会社を辞め南の島へ。'
+      age+survived+pre+'十分な蓄えを得て、あなたは会社を辞め南の島へ。'
       +'波の音を聞きながら、のんびりと第二の人生を楽しむ。よく頑張った。お疲れさまでした。');
-  } else if(m >= CONFIG.endNormal){
+  } else if(m >= CONFIG.endNormal * scale){
     gameOver('地方都市で慎ましく','🏡',
-      '40歳。'+survived+pre+'大金持ちにはなれなかったが、あなたは物価の安い地方都市へ移り住んだ。'
+      age+survived+pre+'大金持ちにはなれなかったが、あなたは物価の安い地方都市へ移り住んだ。'
       +'家庭菜園でもしながら、慎ましくも穏やかな暮らしを始めた。これはこれで、悪くない。');
   } else {
     gameOver('まだまだ働く','🧑‍💻',
-      '40歳。'+survived+pre+'貯金は心もとなく、南の島の夢は遠い。'
+      age+survived+pre+'貯金は心もとなく、南の島の夢は遠い。'
       +'生活のため、あなたはこれからも働き続ける。デスマーチの日々は、まだ終わらない…。');
   }
 }
@@ -1961,9 +2142,21 @@ function render(){
   const cashEl = document.getElementById('cash');
   cashEl.textContent = man(S.companyCash);
   cashEl.style.color = S.companyCash < CONFIG.contractBase ? 'var(--danger)' : 'var(--cash)';
+  // 投資額
+  const invStat = document.getElementById('invest-stat');
+  if(S.investments > 0){ invStat.classList.remove('hidden'); document.getElementById('invest').textContent = man(S.investments); }
+  else invStat.classList.add('hidden');
+  // 景気
+  document.getElementById('econ-pill').innerHTML = '📊 景気:'+econLabel();
+  // スキル
+  const sk = S.skills;
+  document.getElementById('skills-line').innerHTML =
+    '🎓 ⚡<b>'+sk.speed+'</b> 💪<b>'+sk.tough+'</b> 🤝<b>'+sk.nego+'</b> 👔<b>'+sk.mgmt+'</b>'
+    + (S.skillPoints>0 ? '　<span style="color:var(--accent)">未使用P:'+S.skillPoints+'</span>' : '');
 
   const relMap = {single:'独身', girlfriend:'恋人あり 💗', married:'既婚 💍'};
   let relTxt = relMap[S.relationship];
+  if(S.relationship!=='single' && S.partnerName) relTxt = (S.relationship==='married'?'既婚 💍':'恋人 💗')+'：'+S.partnerName+'さん';
   if(S.children>0) relTxt += '・子供'+S.children+'人 👶';
   if(S.president) relTxt = '👔社長 / ' + relTxt;
   document.getElementById('relpill').innerHTML = relTxt;
@@ -2003,7 +2196,7 @@ function render(){
   document.getElementById('proj-deadline').textContent =
     '納期まで残り '+remain+'期'+(remain<=1?'（今期で必要工数に届かないと失敗！）':'');
 
-  if(!document.getElementById('phase-play').classList.contains('hidden')){ updatePreview(); renderCare(); }
+  if(!document.getElementById('phase-play').classList.contains('hidden')){ updatePreview(); renderCare(); renderInvest(); }
 }
 
 /* ===================== HELPERS ===================== */
@@ -2040,6 +2233,10 @@ function log(msg, cls){
 }
 function gameOver(title, emoji, text){
   S.over = true;
+  if(S.investments){ S.money += S.investments; S.investments = 0; }   // 投資を清算
+  const bad = /過労死|折れた|倒産/.test(title);
+  sfx(bad ? 'death' : 'success');
+  if(!bad) launchConfetti();
   document.getElementById('screen-game').classList.add('hidden');
   const end = document.getElementById('screen-end');
   end.classList.remove('hidden');
@@ -2054,17 +2251,42 @@ function gameOver(title, emoji, text){
   if(S.abilities.zen) ab.push('🧘禅');
   if(S.abilities.ironbody) ab.push('💪鉄の肉体');
   if(S.abilities.charisma) ab.push('🤝人望');
+  const sk = S.skills;
   document.getElementById('end-stats').innerHTML =
     '最終年齢 '+Math.floor(S.age)+'歳｜勤続'+S.years+'年'+(S.president?'｜👔社長':'')+'<br>'
     +'最終貯金 <b style="color:var(--money)">'+man(S.money)+'</b>｜仕事力 '+S.workPower+'<br>'
     +'体力上限 '+S.maxSta+'｜メンタル上限 '+S.maxMen+'｜会社キャッシュ '+man(S.companyCash)+'<br>'
+    +'スキル ⚡'+sk.speed+'/💪'+sk.tough+'/🤝'+sk.nego+'/👔'+sk.mgmt+'<br>'
     +'着手プロジェクト '+(S.projIndex+1)+'件｜'+relMap[S.relationship]+(S.children>0?'・子供'+S.children+'人':'')
     +(ab.length?'<br>覚醒した能力：'+ab.join(' '):'');
+
+  // 人生年譜
+  let chronHtml = '';
+  if(S.chronicle && S.chronicle.length){
+    chronHtml = '<div class="chronicle"><h3>📜 あなたの人生年譜</h3>'
+      + S.chronicle.map(function(c){ return '<div class="c-item"><span class="c-age">'+c.age+'歳</span>'+c.text+'</div>'; }).join('')
+      + '</div>';
+  }
+  // 歴代ベスト記録
+  let bestHtml = '';
+  try{
+    const best = JSON.parse(localStorage.getItem('dms_best') || '{}');
+    const isRichBest = (S.money > (best.money||0));
+    const isOldBest = (Math.floor(S.age) > (best.age||0));
+    if(isRichBest) best.money = S.money;
+    if(isOldBest) best.age = Math.floor(S.age);
+    if(S.workPower > (best.wp||0)) best.wp = S.workPower;
+    localStorage.setItem('dms_best', JSON.stringify(best));
+    bestHtml = '<div class="best">🏆 歴代ベスト：貯金 '+man(best.money||0)+'｜到達年齢 '+(best.age||0)+'歳｜仕事力 '+(best.wp||0)
+      + (isRichBest?'　<span style="color:var(--money)">★貯金更新！</span>':'') + '</div>';
+  }catch(e){}
+  document.getElementById('end-chronicle').innerHTML = chronHtml + bestHtml;
+
   // 前回の結果として保存(トップページから確認できる)
   try{
     localStorage.setItem('dms_last_result', JSON.stringify({
       emoji: emoji, title: title, text: text,
-      stats: document.getElementById('end-stats').innerHTML,
+      stats: document.getElementById('end-stats').innerHTML + chronHtml + bestHtml,
     }));
   }catch(e){}
 }
@@ -2083,12 +2305,19 @@ function showLastResult(){
   document.getElementById('end-stats').innerHTML = d.stats;
 }
 
-// トップ表示時、前回の結果があればボタンを出す
+// トップ表示時、前回の結果・歴代ベストがあれば表示する
 (function(){
   try{
     if(localStorage.getItem('dms_last_result'))
       document.getElementById('last-result-btn').classList.remove('hidden');
+    const best = JSON.parse(localStorage.getItem('dms_best') || 'null');
+    if(best && (best.money || best.age)){
+      const el = document.getElementById('title-best');
+      el.innerHTML = '🏆 歴代ベスト：貯金 '+man(best.money||0)+'｜到達年齢 '+(best.age||0)+'歳｜仕事力 '+(best.wp||0);
+      el.classList.remove('hidden');
+    }
   }catch(e){}
+  renderLenSelect();
 })();
 </script>
 </body>
