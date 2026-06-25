@@ -3,8 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - main
-      - 'claude/**'   # 改修ブランチへの push でも即時プレビュー公開
+      - main          # main への push(PRマージ)で本番公開。Pages環境はmain限定保護のためブランチからは公開不可
   workflow_dispatch:
 
 permissions:

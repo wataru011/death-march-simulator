@@ -39,15 +39,26 @@
 
 ## 🌐 公開（GitHub Pages）
 
-`.github/workflows/deploy-pages.yml` で GitHub Actions による自動デプロイを用意しています。
+`main` への push（PRマージ）で GitHub Actions が自動デプロイします（`.github/workflows/deploy-pages.yml`）。
+公開URL：`https://wataru011.github.io/death-march-simulator/`
 
-初回のみリポジトリ設定が必要です：
+## 🔄 自動公開パイプライン
 
-1. GitHub リポジトリの **Settings → Pages** を開く
-2. **Build and deployment → Source** を **「GitHub Actions」** に設定
-3. 対象ブランチ（`main` またはこのフィーチャーブランチ）に push するとデプロイされます
+改修すると、以下が自動で連鎖します。
 
-公開URL（例）：`https://wataru011.github.io/death-march-simulator/`
+```
+改修 → (Stopフック) commit & push → (auto-pr.yml) PR作成/更新 → マージ → (deploy-pages.yml) Pages公開
+```
+
+- **commit & push**：`.claude/settings.json` の Stop フックが `.claude/auto-commit.sh` を実行し、変更があれば現在ブランチへ自動コミット＆プッシュ
+- **PR**：`claude/**` ブランチへの push を受けて `auto-pr.yml` が `main` への PR を自動作成（既存PRがあれば push で自動更新）
+- **Pages公開**：PR を `main` にマージすると本番公開（Pages環境は `main` 限定保護のため、公開トリガはマージ）
+
+### 一度だけ必要なリポジトリ設定
+
+- **PRの自動作成を有効化**：Settings → Actions → General → Workflow permissions で
+  **「Allow GitHub Actions to create and approve pull requests」** を ON。
+  （OFFの間も `auto-pr.yml` は赤バツにならず警告を出すだけ。その場合 PR は手動／MCP経由で作成）
 
 ## 🛠 開発
 

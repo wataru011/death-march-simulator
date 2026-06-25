@@ -42,16 +42,27 @@ jobs:
               return;
             }
 
-            const pr = await github.rest.pulls.create({
-              owner, repo, base, head,
-              title: `改修: ${head}`,
-              body: [
-                'Claude Code により自動作成された PR です。改修内容を `main` に取り込みます。',
-                '',
-                '- push のたびに自動更新されます',
-                '- マージすると `main` の GitHub Pages が更新されます',
-                '',
-                '🤖 Generated with [Claude Code](https://claude.com/claude-code)',
-              ].join('\n'),
-            });
-            core.info(`Created PR #${pr.data.number}: ${pr.data.html_url}`);
+            try {
+              const pr = await github.rest.pulls.create({
+                owner, repo, base, head,
+                title: `改修: ${head}`,
+                body: [
+                  'Claude Code により自動作成された PR です。改修内容を `main` に取り込みます。',
+                  '',
+                  '- push のたびに自動更新されます',
+                  '- マージすると `main` の GitHub Pages が更新されます',
+                  '',
+                  '🤖 Generated with [Claude Code](https://claude.com/claude-code)',
+                ].join('\n'),
+              });
+              core.info(`Created PR #${pr.data.number}: ${pr.data.html_url}`);
+            } catch (e) {
+              if (e.status === 403) {
+                // リポジトリ設定「Allow GitHub Actions to create and approve pull requests」が未許可。
+                // 赤バツにはせず、有効化を促す警告だけ出して正常終了する。
+                core.warning('Actions による PR 自動作成が未許可です。Settings → Actions → General → Workflow permissions で ' +
+                  '「Allow GitHub Actions to create and approve pull requests」を ON にしてください。');
+                return;
+              }
+              throw e;
+            }
