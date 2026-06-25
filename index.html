@@ -48,6 +48,7 @@
   }
   button:hover{filter:brightness(1.1);}
   button:disabled{opacity:.4; cursor:not-allowed;}
+  button.ghost{background:var(--panel2); border:1px solid var(--line); color:var(--txt);}
   .choices button, .opt-card{background:var(--panel2); border:1px solid var(--line); color:var(--txt); text-align:left;}
   .choices button{margin-top:8px;}
   .choices button:hover{border-color:var(--accent); filter:none;}
@@ -58,8 +59,11 @@
   .care button{width:auto; flex:1; min-width:150px; font-size:.82rem; padding:8px 10px; background:var(--panel2); border:1px solid var(--line); color:var(--txt); margin-top:0;}
   .care button:hover:not(:disabled){border-color:var(--money); filter:none;}
   .kbar{height:18px; background:#0a0e14; border:1px solid var(--line); border-radius:9px; overflow:hidden; position:relative;}
-  .kbar>span{display:block; height:100%; background:linear-gradient(90deg,#1f6feb,#58a6ff); width:0; transition:width .4s;}
-  .kbar .txt{position:absolute; inset:0; text-align:center; font-size:.78rem; line-height:18px;}
+  .kbar>span{position:absolute; left:0; top:0; height:100%; width:0; transition:width .4s;}
+  #proj-bar{background:linear-gradient(90deg,#1f6feb,#58a6ff); z-index:2;}            /* 現在の進捗 */
+  #proj-bar-proj{background:repeating-linear-gradient(45deg,#e3884122,#e3884122 6px,#e3884155 6px,#e3884155 12px); border-right:2px solid #f0883e; z-index:1;} /* 予想進捗 */
+  .kbar .txt{position:absolute; inset:0; text-align:center; font-size:.78rem; line-height:18px; z-index:3;}
+  .proj-c{color:#58a6ff;} .proj-p{color:#f0883e;}
   .tag{display:inline-block; font-size:.72rem; padding:1px 8px; border-radius:10px; background:var(--panel2); border:1px solid var(--line); margin-right:5px;}
   .tag.sta{color:var(--sta); border-color:var(--sta);}
   .tag.men{color:var(--men); border-color:var(--men);}
@@ -114,6 +118,7 @@
         </table>
       </details>
       <button onclick="goIntro()">入社する ▶</button>
+      <button id="last-result-btn" class="ghost hidden" onclick="showLastResult()" style="margin-top:8px;">📜 前回の結果を見る</button>
     </div>
   </div>
 
@@ -159,7 +164,7 @@
       <div class="sub" id="proj-brief" style="margin-bottom:4px;"></div>
       <div class="sub" id="proj-desc"></div>
       <div style="margin:8px 0;"><span id="proj-tags"></span></div>
-      <div class="kbar"><span id="proj-bar"></span><div class="txt" id="proj-ktxt"></div></div>
+      <div class="kbar"><span id="proj-bar-proj"></span><span id="proj-bar"></span><div class="txt" id="proj-ktxt"></div></div>
       <div class="sub" id="proj-deadline" style="margin-top:4px;"></div>
 
       <div class="ctrl" style="margin-top:16px;">
@@ -197,7 +202,6 @@
     <div id="phase-event" class="panel hidden">
       <h2>✨ <span id="ev-title"></span></h2>
       <p id="ev-text"></p>
-      <p class="sub">※ 何が起こるかは、選んでみないと分からない。</p>
       <div class="choices" id="ev-choices"></div>
     </div>
 
@@ -237,6 +241,9 @@ const CONFIG = {
   marriedBonus: 4, gfBonus: 2, childBonus: 2,
   successMental: 5, failMental: 8,
   moneyRate: 300,
+  // 毎四半期の生活/家族の出費。独身は出費が無い代わりにメンタル回復が遅い(下記係数)
+  expense: { girlfriend: 150000, married: 300000, perChild: 150000 },
+  singleMenRecovery: 0.8,
   // 恋愛: crisisMental 未満で「危機」イベント。回避できるが strain が限界(maxStrain)に達すると別れ
   crisisMental: 32, maxStrain: 3,
   // 会社キャッシュ
@@ -1427,15 +1434,17 @@ function quarterPreview(hours, weekendDays){
   if(S.abilities.zen) menDrain *= 0.8;                 // 《禅の境地》: メンタル消耗が減る
   let recovery = restDays * CONFIG.restRate * (S.abilities.ironbody ? 1.25 : 1); // 《鉄の肉体》: 回復増
   let menSupport = 0;
+  let menRecMult = 1;
   if(S.relationship === 'married') menSupport += CONFIG.marriedBonus;
   else if(S.relationship === 'girlfriend') menSupport += CONFIG.gfBonus;
+  else menRecMult = CONFIG.singleMenRecovery;   // 独身はメンタル回復が遅い
   menSupport += S.children * CONFIG.childBonus;
   let pay = proj.pay * (S.president ? 1.3 : 1.0);
   const money = Math.round(manHours * pay * (0.6 + wp * 0.02) * CONFIG.moneyRate);
   return {
     kousu: Math.round(kousu),
     staDelta: Math.round(recovery - staDrain),
-    menDelta: Math.round(recovery - menDrain + menSupport),
+    menDelta: Math.round(recovery * menRecMult - menDrain + menSupport),
     money, boredom,
   };
 }
@@ -1447,12 +1456,20 @@ function updatePreview(){
   document.getElementById('wknd-v').textContent = wknd;
   const p = quarterPreview(hours, wknd);
   const proj = S.project;
-  const projectedPct = (proj.accumulated + p.kousu) / proj.required * 100;
-  let approx = Math.round(projectedPct / 10) * 10;
-  let pctText = approx >= 100 ? '約100%（超過分は他PJのヘルプに）' : ('約' + approx + '%');
+  const willFinish = (proj.accumulated + p.kousu) >= proj.required;
+  const curPct  = progressDisplay(proj.accumulated, proj.required);
+  const projPct = progressDisplay(proj.accumulated + p.kousu, proj.required);
+  // グラフ: 現在の進捗(青)に予想進捗(オレンジ)を重ねて表示
+  document.getElementById('proj-bar').style.width = curPct + '%';
+  document.getElementById('proj-bar-proj').style.width = (willFinish ? 100 : projPct) + '%';
+  document.getElementById('proj-ktxt').innerHTML =
+    '進捗 <span class="proj-c">約' + curPct + '%</span> → 予想 <span class="proj-p">約' + projPct + '%</span>'
+    + (willFinish ? '<span class="proj-p">（完遂見込み）</span>' : '');
+  // チップ: 収入・出費・納期警告(予想進捗はグラフ側に表示)
   let html = '';
-  html += '<span class="chip">予想進捗：' + pctText + '</span>';
   html += '<span class="chip">見込み収入：約' + man(p.money) + '</span>';
+  const exp = quarterlyExpense();
+  if(exp > 0) html += '<span class="chip" style="border-color:var(--danger);color:var(--danger)">毎期の出費：約' + man(exp) + '</span>';
   const lastChance = (proj.quartersElapsed + 1) >= proj.length;
   if(lastChance) html += '<span class="chip" style="border-color:var(--danger);color:var(--danger)">⚠ 今期が納期。未達なら失敗</span>';
   document.getElementById('preview').innerHTML = html;
@@ -1499,6 +1516,8 @@ function work(){
   proj.quartersElapsed += 1;
   proj.earned += p.money;
   S.money += p.money;
+  const expense = quarterlyExpense();
+  if(expense > 0) S.money = Math.max(0, S.money - expense);
   S.sta = clamp(S.sta + p.staDelta, 0, S.maxSta);
   S.men = clamp(S.men + p.menDelta, 0, S.maxMen);
 
@@ -1506,7 +1525,8 @@ function work(){
   S.age = CONFIG.startAge + S.quarter / 4;
   S.years = Math.floor(S.quarter / 4);
 
-  log('第'+S.quarter+'四半期：'+hours+'時間/日・休日'+wknd+'日勤務（収入 '+man(p.money)+'）');
+  log('第'+S.quarter+'四半期：'+hours+'時間/日・休日'+wknd+'日勤務（収入 '+man(p.money)
+      + (expense>0 ? '／家族の出費 '+man(expense) : '') + '）');
 
   // 過労死判定（不死鳥なら一度だけ復活）
   if(S.sta <= 0){
@@ -1865,9 +1885,10 @@ function render(){
   document.getElementById('proj-tags').innerHTML =
     '<span class="tag sta">体力消耗 '+(proj.staminaWeight>=1.2?'大':proj.staminaWeight>=0.95?'中':'小')+'</span>'
     + '<span class="tag men">メンタル消耗 '+(proj.mentalWeight>=1.2?'大':proj.mentalWeight>=0.95?'中':'小')+'</span>';
-  const approx = Math.min(100, Math.round(proj.accumulated/proj.required*100/10)*10);
-  document.getElementById('proj-bar').style.width = approx+'%';
-  document.getElementById('proj-ktxt').textContent = '進捗 約'+approx+'%';
+  const curPct = progressDisplay(proj.accumulated, proj.required);
+  document.getElementById('proj-bar').style.width = curPct+'%';
+  document.getElementById('proj-bar-proj').style.width = curPct+'%';
+  document.getElementById('proj-ktxt').textContent = '進捗 約'+curPct+'%';
   const remain = proj.length - proj.quartersElapsed;
   document.getElementById('proj-deadline').textContent =
     '納期まで残り '+remain+'期'+(remain<=1?'（今期で必要工数に届かないと失敗！）':'');
@@ -1878,6 +1899,20 @@ function render(){
 /* ===================== HELPERS ===================== */
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
 function sign(n){ return n>0 ? '+'+n : ''+n; }
+// 進捗の概算表示(10%刻み)。完了していなければ100%とは出さず99%にする
+function progressDisplay(acc, req){
+  if(acc >= req) return 100;
+  const r = Math.round(acc / req * 100 / 10) * 10;
+  return r >= 100 ? 99 : r;
+}
+// 毎四半期の生活/家族の出費
+function quarterlyExpense(){
+  let e = 0;
+  if(S.relationship === 'married') e += CONFIG.expense.married;
+  else if(S.relationship === 'girlfriend') e += CONFIG.expense.girlfriend;
+  e += S.children * CONFIG.expense.perChild;
+  return e;
+}
 function man(yen){
   const neg = yen < 0; const a = Math.abs(yen);
   let s;
@@ -1915,7 +1950,36 @@ function gameOver(title, emoji, text){
     +'体力上限 '+S.maxSta+'｜メンタル上限 '+S.maxMen+'｜会社キャッシュ '+man(S.companyCash)+'<br>'
     +'着手プロジェクト '+(S.projIndex+1)+'件｜'+relMap[S.relationship]+(S.children>0?'・子供'+S.children+'人':'')
     +(ab.length?'<br>覚醒した能力：'+ab.join(' '):'');
+  // 前回の結果として保存(トップページから確認できる)
+  try{
+    localStorage.setItem('dms_last_result', JSON.stringify({
+      emoji: emoji, title: title, text: text,
+      stats: document.getElementById('end-stats').innerHTML,
+    }));
+  }catch(e){}
 }
+
+function showLastResult(){
+  let d = null;
+  try{ d = JSON.parse(localStorage.getItem('dms_last_result')); }catch(e){}
+  if(!d) return;
+  document.getElementById('screen-title').classList.add('hidden');
+  document.getElementById('screen-intro').classList.add('hidden');
+  document.getElementById('screen-game').classList.add('hidden');
+  document.getElementById('screen-end').classList.remove('hidden');
+  document.getElementById('end-emoji').textContent = d.emoji;
+  document.getElementById('end-title').textContent = '【前回の結果】' + d.title;
+  document.getElementById('end-text').textContent = d.text;
+  document.getElementById('end-stats').innerHTML = d.stats;
+}
+
+// トップ表示時、前回の結果があればボタンを出す
+(function(){
+  try{
+    if(localStorage.getItem('dms_last_result'))
+      document.getElementById('last-result-btn').classList.remove('hidden');
+  }catch(e){}
+})();
 </script>
 </body>
 </html>
