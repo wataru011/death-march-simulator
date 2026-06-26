@@ -123,17 +123,15 @@
       心がすり減れば<b style="color:var(--men)">メンタル</b>が折れる。
       プロジェクトに失敗し<b style="color:var(--cash)">会社のキャッシュ</b>が尽きれば<b>倒産</b>。<br>
       恋人や家族との時間も、働きすぎれば失われていく。</p>
-      <p><b id="goal-age-text">35歳</b>まで生き延びれば引退。そのときの<b style="color:var(--money)">貯金額</b>で人生の結末が決まる。</p>
-      <div style="text-align:center; margin:10px 0; font-size:.9rem;">
-        プレイの長さ：<span id="len-select"></span>
-      </div>
+      <p><b>35歳</b>まで生き延びれば引退。そのときの<b style="color:var(--money)">貯金額</b>で人生の結末が決まる。</p>
       <details>
         <summary>ルール詳細を見る</summary>
         <table class="help">
           <tr><td>工数</td><td>(20日＋休日勤務)×3ヶ月×労働時間×仕事力。期限内に必要工数を満たせば成功。100%超過分は他チームのヘルプに回り収入になる。</td></tr>
           <tr><td>仕事力</td><td>難しいプロジェクトを完遂するほど大きく上がる。</td></tr>
           <tr><td>体力 / メンタル</td><td>長く働くほど減り、休むほど回復。<b>減り具合は感覚（5段階）でしか分からない</b>。お金を使えば回復できる。</td></tr>
-          <tr><td>お金</td><td>働いた量×報酬率で増える。回復や自己投資に使える。残せば結末が良くなる。</td></tr>
+          <tr><td>お金</td><td>働いた量×報酬率で増える。イベントで出費もある。<b>マイナス(借金)になると恋人・妻子は去っていく</b>。資産運用に回すと景気次第で増減。残せば結末が良くなる。</td></tr>
+          <tr><td>労働時間</td><td>長く働くほど1時間あたりの成果は落ちる(効率逓減)。休日勤務は手当1.5倍だがメンタルと家庭に負担。</td></tr>
           <tr><td>会社キャッシュ</td><td>プロジェクト成功で増え、失敗で減る。<b>多いほど毎期の業績連動ボーナスが増え、自分の貯金も増える</b>。受注額が大きい案件ほど失敗時の損失も大きく、0になると倒産。</td></tr>
           <tr><td>イベント</td><td>毎四半期発生・4択。効果は選択後に判明。過去の選択でその後が分岐。特定の道で<b>レアな才能</b>に目覚めることも。</td></tr>
           <tr><td>恋愛</td><td>働きすぎると関係が悪化。選択次第で別れは回避できるが、相手の我慢にも限界がある。</td></tr>
@@ -200,15 +198,13 @@
       <div class="ctrl">
         <label>1ヶ月の休日勤務日数 <span class="val"><span id="wknd-v"></span> 日</span></label>
         <input type="range" id="wknd" min="0" max="4" step="1" value="0" oninput="updatePreview()">
+        <div class="sub" style="font-size:.74rem;">休日手当1.5倍で稼げるが、メンタルを多めに消耗し、恋人・家庭との関係が悪化しやすい</div>
       </div>
       <div class="preview" id="preview"></div>
 
       <button onclick="work()">この四半期を働く ▶</button>
 
-      <div class="sub" style="margin-top:14px;">💴 お金で自己投資（体力・メンタル）</div>
-      <div class="care" id="care"></div>
-
-      <div class="sub" style="margin-top:12px;">📈 資産運用 <span id="invest-info"></span></div>
+      <div class="sub" style="margin-top:14px;">📈 資産運用 <span id="invest-info"></span></div>
       <div class="care" id="invest-buttons"></div>
     </div>
 
@@ -278,9 +274,11 @@
 
 /* ===================== CONFIG ===================== */
 const CONFIG = {
-  startAge: 22, endAge: 40,
+  startAge: 22, endAge: 35,
   startStamina: 100, startMental: 100, startWorkPower: 10, startMoney: 0,
   baseDrain: 0.35, restRate: 1.0,
+  // 休日勤務: 割増手当・体力消耗は軽め・メンタル消耗は重め・関係悪化の閾値
+  weekendPayMult: 1.5, weekendStaFactor: 0.4, weekendMenFactor: 1.8, weekendStrainThreshold: 3,
   marriedBonus: 4, gfBonus: 2, childBonus: 2,
   successMental: 5, failMental: 8,
   moneyRate: 300,
@@ -297,6 +295,9 @@ const CONFIG = {
   singleMenRecovery: 0.8,
   // 恋愛: crisisMental 未満で「危機」イベント。回避できるが strain が限界(maxStrain)に達すると別れ
   crisisMental: 32, maxStrain: 3,
+  pregnancyQuarters: 3,   // 子を授かってから生まれるまで(約9ヶ月)
+  // 長時間労働教: 入信後、この時間未満で働くとメンタルが大きく減る
+  cultThreshold: 10, cultPenalty: 0.06,
   // 会社キャッシュ
   companyCashStart: 10000000,
   contractBase: 2000000, contractGrowth: 0.18,
@@ -369,22 +370,28 @@ function projBrief(index, variant, prof){
 // index = これまでに着手した案件数。variant 0=安定案件 / 1=高難度高報酬
 function makeOption(index, variant){
   const expectedWp = CONFIG.startWorkPower + 2 * index;
-  const hTarget = Math.min(13, 7 + index * 0.13);
-  const length = 1 + (index % 4);
+  const hTarget = Math.min(14, 7 + index * 0.14);
   const prof = PROFILES[(index + variant*2) % PROFILES.length];
-  let pay, reqMult, wpBonus, kind;
-  if(variant === 0){ pay = 0.90 + (index%2)*0.10; reqMult = 0.90; wpBonus = 0; kind='安定案件'; }
-  else            { pay = 1.45 + (index%2)*0.20; reqMult = 1.30; wpBonus = 1; kind='高難度・高報酬'; }
+  let pay, reqMult, wpBonus, kind, length, hopeless = false;
+  if(variant === 0){
+    pay = 0.90 + (index%2)*0.10; reqMult = 0.90; wpBonus = 0; kind='安定案件';
+    length = 1 + (index % 3);                                  // 1〜3期
+  } else {
+    pay = 1.45 + (index%2)*0.20; reqMult = 1.30; wpBonus = 1; kind='高難度・高報酬';
+    length = Math.min(8, 2 + (index % 4) + Math.floor(index/8)); // 2〜8期
+    // 5案件に1回、誰がやっても間に合わない「炎上案件」が出る(高報酬の罠)
+    if(index % 5 === 4){ kind='炎上案件(火消し困難)'; reqMult = 2.4; pay = 1.8; length = Math.min(8, 4 + (index % 5)); hopeless = true; }
+  }
   const required = Math.round(expectedWp * length * 60 * hTarget * reqMult);
   const contract = Math.round(CONFIG.contractBase * length * pay * (1 + index * CONFIG.contractGrowth));
   // 規模(人日): 標準スキル(expectedWp)で8時間労働した場合に何人日かかるか
   const manDays = Math.max(1, Math.round(required / (8 * expectedWp)));
   return {
     index, variant, kind, name: projName(index*2 + variant),
-    length, required, reqMult, contract, manDays,
+    length, required, reqMult, contract, manDays, hopeless,
     staminaWeight: prof.s, mentalWeight: prof.m, type: prof.type,
-    pay, wpBonus, difficulty: diffStars(index, reqMult),
-    brief: projBrief(index, variant, prof),
+    pay, wpBonus, difficulty: hopeless ? '★★★★★💀' : diffStars(index, reqMult),
+    brief: hopeless ? '誰も手をつけたがらない大炎上案件。納期内の完遂はほぼ不可能だが、受注額は破格。' : projBrief(index, variant, prof),
     accumulated: 0, quartersElapsed: 0, earned: 0,
   };
 }
@@ -399,6 +406,14 @@ const EVENTS = [
       {label:'隅で同期と語り合う', flags:['hasPeers'], eff:{dMen:8}, log:'同期と意気投合し、心強い仲間ができた。'},
       {label:'酔い潰れるまで飲む', eff:{dSta:-12,dMen:5}, log:'記憶は無いが、楽しかったらしい。'},
       {label:'体調を理由に抜けて勉強する', flags:['studious'], eff:{dWp:3,dMen:-4}, log:'独り黙々と自己研鑽した。'},
+    ]},
+  { id:'seminar', cond:(s)=>s.years>=2 && !s.flags.cult, title:'カリスマ講師のセミナー',
+    text:'同僚に誘われ、成功者が登壇する評判のセミナーへ。会場は異様な熱気に包まれている。',
+    choices:[
+      {label:'講師の理念に深く感銘を受け、信条として取り入れる', flags:['cult'], eff:{dWp:2}, log:'「働くことこそ、生きること」——その教えが心の奥深くに根を下ろした…。'},
+      {label:'役立つ部分だけ持ち帰る', eff:{dWp:2,dMen:-1}, log:'良いとこ取りで学んだ。'},
+      {label:'熱気に当てられて冷静になる', eff:{dMen:3}, log:'一歩引いて眺めた。'},
+      {label:'時間の無駄だと途中で帰る', eff:{dSta:4}, log:'早々に切り上げた。'},
     ]},
   { id:'checkup', cond:()=>true, title:'入社後の健康診断',
     text:'医者に「働きすぎると危ないですよ」と釘を刺された。',
@@ -1195,13 +1210,111 @@ const EVENTS = [
       {label:'気にせず普段通り過ごす', eff:{dMen:3}, log:'迷信に振り回されなかった。'},
       {label:'なんとなく不調が続く', eff:{dSta:-4,dMen:-3}, log:'厄年を意識して気が滅入った。'},
     ]},
-  { id:'crossroad', cond:(s)=>s.years>=15, title:'人生の岐路',
-    text:'40歳が近づき、これまでの人生とこれからを、深く見つめ直す。',
+  { id:'crossroad', cond:(s)=>s.years>=11, title:'人生の岐路',
+    text:'引退も視野に入り、これまでの人生とこれからを、深く見つめ直す。',
     choices:[
       {label:'これまでの自分を誇る', eff:{dMaxMen:12,dMen:10}, log:'歩んできた道に自信を持てた。'},
       {label:'最後まで走り抜く決意', eff:{dWp:5,dMen:-2}, log:'ゴールへ向けて気を引き締めた。'},
       {label:'大切なものを再確認する', eff:{dMen:10,dMaxMen:6}, log:'本当に大事なものが見えた。'},
       {label:'後悔と向き合う', eff:{dMen:-4,dMaxMen:8}, log:'痛みも含めて受け入れた。'},
+    ]},
+
+  /* ===== 追加の分岐チェーン(選択でフラグが立ち、後の展開が変わる) ===== */
+  { id:'side_hustle', cond:(s)=>s.years>=2 && !s.flags.entrepreneur, title:'副業の芽',
+    text:'空き時間で始めた小さな副業が、少しずつ形になってきた。',
+    choices:[
+      {label:'事業として本気で育てる', flags:['entrepreneur'], eff:{dWp:3,dSta:-6,money:200000}, log:'起業家への第一歩を踏み出した。'},
+      {label:'お小遣い稼ぎに留める', eff:{money:150000,dSta:-3}, log:'無理なく続けた。'},
+      {label:'本業に集中するため畳む', eff:{dMen:3}, log:'きっぱり手を引いた。'},
+      {label:'仲間を巻き込んで拡大', flags:['entrepreneur','networker'], eff:{dWp:2,dMen:-3}, log:'人を集めて動き出した。'},
+    ]},
+  { id:'side_hustle_grow', cond:(s)=>s.flags.entrepreneur && s.years>=5, title:'副業の岐路',
+    text:'育ててきた副業が、本業を脅かすほど大きくなってきた。',
+    choices:[
+      {label:'独立して勝負に出る', eff:{dWp:6,dSta:-10,dMen:-8,money:1500000}, log:'退路を断ち、事業に賭けた。'},
+      {label:'本業と両立し続ける', eff:{dWp:3,dSta:-6,money:600000}, log:'二足の草鞋を貫いた。'},
+      {label:'事業を売却して資金化', eff:{money:2500000,dMen:4}, log:'高値で売り抜けた。'},
+      {label:'軌道に乗らず撤退', eff:{money:-300000,dMen:-6}, log:'夢は潰えた…。'},
+    ]},
+  { id:'crypto', cond:(s)=>s.money>=4000000 && s.years>=3 && !s.flags.degen, title:'怪しい投資話',
+    text:'急騰中だという暗号資産。今乗らなければ乗り遅れる、と友人は言う。',
+    choices:[
+      {label:'大金を突っ込む', flags:['degen'], eff:{money:-2000000,dMen:-4}, log:'なけなしの大金を投じた…。'},
+      {label:'少額で様子を見る', flags:['degen'], eff:{money:-300000}, log:'お試しで参戦した。'},
+      {label:'勉強だけして見送る', flags:['studious'], eff:{dWp:1,dMen:2}, log:'冷静に分析して降りた。'},
+      {label:'きっぱり断る', eff:{dMaxMen:4}, log:'うまい話には乗らなかった。'},
+    ]},
+  { id:'crypto_result', cond:(s)=>s.flags.degen, title:'相場の結末',
+    text:'あの投資の結果が出た。さて——',
+    choices:[
+      {label:'利益を確定して引き上げる', eff:{money:1800000,dMen:8}, log:'うまく稼いで撤退した。'},
+      {label:'欲を出して追加投資', flags:[], eff:{money:-1500000,dMen:-10}, log:'高値掴みで大損した…。'},
+      {label:'塩漬けにして祈る', eff:{dMen:-4}, log:'含み損を抱えたまま放置した。'},
+      {label:'もう二度とやらないと誓う', eff:{dMaxMen:6}, log:'良い教訓になった。'},
+    ]},
+  { id:'hobby', cond:(s)=>s.years>=2 && !s.flags.hobbyist, title:'夢中になれる趣味',
+    text:'ふとしたきっかけで、心から夢中になれる趣味に出会った。',
+    choices:[
+      {label:'のめり込んで生きがいにする', flags:['hobbyist'], eff:{dMaxMen:10,dMen:8,money:-100000}, log:'人生に彩りが生まれた。'},
+      {label:'息抜き程度に楽しむ', eff:{dMen:6}, log:'良いリフレッシュになった。'},
+      {label:'仲間を見つけて交流', flags:['hobbyist','hasPeers'], eff:{dMen:7,dSta:-2}, log:'趣味仲間ができた。'},
+      {label:'時間がなく諦める', eff:{dMen:-3,dWp:1}, log:'仕事を優先した。'},
+    ]},
+  { id:'hobby_fame', cond:(s)=>s.flags.hobbyist && s.years>=5, title:'趣味が実を結ぶ',
+    text:'長く続けた趣味が、思わぬ形で注目を集め始めた。',
+    choices:[
+      {label:'副収入の柱にする', eff:{money:600000,dMen:6}, log:'好きが収入に変わった。'},
+      {label:'発信して仲間を増やす', flags:['famous'], eff:{dMaxMen:8,dMen:6}, log:'コミュニティの中心になった。'},
+      {label:'あくまで純粋に楽しむ', eff:{dMaxMen:10}, log:'初心を忘れず続けた。'},
+      {label:'燃え尽きて熱が冷める', eff:{dMen:-4}, log:'情熱が薄れてしまった。'},
+    ]},
+  { id:'volunteer', cond:(s)=>s.years>=3 && !s.flags.altruist, title:'ボランティアの誘い',
+    text:'地域の支援活動に誘われた。',
+    choices:[
+      {label:'積極的に参加する', flags:['altruist'], eff:{dMaxMen:10,dMen:8,dSta:-4}, log:'人の役に立つ喜びを知った。'},
+      {label:'できる範囲で手伝う', eff:{dMen:6}, log:'無理なく貢献した。'},
+      {label:'寄付で支える', eff:{money:-100000,dMen:5}, log:'お金で支援した。'},
+      {label:'今は余裕がなく断る', eff:{dMen:-2}, log:'自分のことで精一杯だった。'},
+    ]},
+  { id:'altruist_payoff', cond:(s)=>s.flags.altruist && s.years>=6, title:'善意の輪',
+    text:'続けてきた支援活動が、地域で大きな信頼を集めている。',
+    choices:[
+      {label:'活動を広げ、人望を得る', flags:['networker'], eff:{dMaxMen:12,dMen:8}, log:'多くの人に慕われる存在になった。'},
+      {label:'仕事にも良い縁が生まれる', eff:{dWp:3,money:200000}, log:'思わぬ仕事の縁につながった。'},
+      {label:'静かに続ける', eff:{dMaxMen:8}, log:'見返りを求めず続けた。'},
+      {label:'燃え尽きて少し離れる', eff:{dMen:-4,dSta:5}, log:'一度距離を置いた。'},
+    ]},
+  { id:'job_hop', cond:(s)=>s.years>=4 && !s.flags.jobHopper, title:'転職という選択肢',
+    text:'今より好条件のオファー。キャリアの転機かもしれない。',
+    choices:[
+      {label:'思い切って転職する', flags:['jobHopper'], eff:{dMaxMen:8,money:400000,dMen:5}, log:'環境を変えて飛躍を狙う。'},
+      {label:'今の会社で交渉する', eff:{money:300000,dWp:1}, log:'残って待遇を改善した。'},
+      {label:'スキルを磨いてから考える', flags:['studious'], eff:{dWp:4,dSta:-4}, log:'市場価値を高めることにした。'},
+      {label:'動かず安定を選ぶ', eff:{dMen:3}, log:'今の場所を大事にした。'},
+    ]},
+  { id:'job_hopper_reputation', cond:(s)=>s.flags.jobHopper && s.years>=7, title:'渡り鳥のキャリア',
+    text:'何度か職場を移り、あなたは「どこでも通用する人材」と見なされ始めた。',
+    choices:[
+      {label:'引く手あまたを活かし好条件を掴む', eff:{money:800000,dWp:3}, log:'交渉力を武器に好待遇を得た。'},
+      {label:'腰を据えて一社に貢献する', eff:{dMaxMen:8,dMen:5}, log:'ようやく定住先を見つけた。'},
+      {label:'フリーランスとして独立', eff:{dWp:4,dSta:-6,money:500000}, log:'組織を離れ自由に働き始めた。'},
+      {label:'根無し草の不安を感じる', eff:{dMen:-5,dMaxMen:4}, log:'居場所のなさに揺れた。'},
+    ]},
+  { id:'health_scare', cond:(s)=>s.years>=4 && !s.flags.healthAware, title:'体からの黄色信号',
+    text:'検査で「このままだと数年後が危ない」と医師に警告された。',
+    choices:[
+      {label:'生活を一新し健康第一に', flags:['healthAware','gym'], eff:{dMaxSta:14,dSta:5,money:-150000}, log:'人生観が変わり、体を最優先にした。'},
+      {label:'できることから少しずつ', flags:['healthAware'], eff:{dMaxSta:6,dSta:3}, log:'無理なく改善を始めた。'},
+      {label:'怖くて直視できない', eff:{dMen:-6}, log:'不安を抱えたまま過ごした。'},
+      {label:'気にせず働き続ける', flags:['reckless'], eff:{dWp:2,dMaxSta:-6}, log:'警告を無視した…。'},
+    ]},
+  { id:'midlife', cond:(s)=>s.years>=9, title:'ふとした虚しさ',
+    text:'順調なはずなのに、ある夜ふいに、これでいいのかという思いがよぎる。',
+    choices:[
+      {label:'生き方を見つめ直す', eff:{dMaxMen:12,dMen:6}, log:'本当に大切なものを問い直した。'},
+      {label:'新しい挑戦で打開する', eff:{dWp:4,dSta:-5,dMen:3}, log:'停滞を破ろうと動いた。'},
+      {label:'家族や仲間に救いを求める', eff:{dMen:10}, log:'人とのつながりに癒やされた。'},
+      {label:'虚しさを仕事で埋める', flags:['workaholic'], eff:{dWp:3,dMen:-6}, log:'働くことで気を紛らわせた。'},
     ]},
 ];
 
@@ -1413,7 +1526,15 @@ function buildEvents(){
 }
 const GENERATED = buildEvents();
 // 選択プール: キュレーション(重要な分岐/レア能力)は最優先(spec=100)、生成イベントは条件の多さ順
-const POOL = EVENTS.map(function(e){ e.spec = 100; return e; }).concat(GENERATED);
+// 重要な分岐イベント(能力付与・恋愛/家族の進展・入信)は最優先(spec=200)。
+// それ以外の作り込みは生成イベントと同列(spec=2)で混ぜ、毎回いろんなイベントが出るようにする。
+const POOL = EVENTS.map(function(e){
+  const important = e.choices.some(function(c){
+    return c.grant || (c.eff && c.eff.rel) || (c.flags && c.flags.indexOf('cult') >= 0);
+  });
+  e.spec = important ? 200 : 2;
+  return e;
+}).concat(GENERATED);
 
 /* ===================== STATE ===================== */
 let S = null;
@@ -1426,7 +1547,7 @@ function newState(){
     workPower: CONFIG.startWorkPower, money: CONFIG.startMoney,
     companyCash: CONFIG.companyCashStart,
     projIndex: 0, project: makeOption(0, 0),
-    relationship: 'single', children: 0, relStrain: 0,
+    relationship: 'single', children: 0, relStrain: 0, pregnant: 0, justBorn: false,
     usedEvents: new Set(), flags: {},
     abilities: { phoenix:false, genius:false, buyout:false, zen:false, ironbody:false, charisma:false },
     phoenixUsed: false, president: false,
@@ -1449,27 +1570,22 @@ function econMult(){ return CONFIG.econCycle[S.years % CONFIG.econCycle.length];
 function econLabel(){ const m = econMult(); return m >= 1.1 ? '好況' : (m <= 0.9 ? '不況' : '普通'); }
 function econReturnRate(){ const m = econMult(); return m >= 1.1 ? CONFIG.econReturn.boom : (m <= 0.9 ? CONFIG.econReturn.bust : CONFIG.econReturn.normal); }
 function netWorth(){ return S.money + (S.investments || 0); }
+// 借金(貯金マイナス)になると恋人・妻子は去っていく
+function checkDebt(){
+  if(S.money < 0 && S.relationship !== 'single'){
+    const who = S.relationship === 'married' ? '妻子' : '恋人';
+    chron('💸 借金で'+who+'が去った');
+    log('💸 借金が膨らみ、'+who+'は去っていった…', 'bad');
+    S.relationship = 'single'; S.children = 0; S.partnerName = ''; S.relStrain = 0; S.pregnant = 0;
+    sfx('fail');
+  }
+}
 
 /* 恋人の名前(決定論的・出会うたび巡回) */
 const PARTNER_NAMES = ['美咲','由衣','彩','沙織','遥','千尋','茜','楓','奈々','陽菜','詩織','麻衣'];
 const RIVAL_NAMES = ['橘','黒木','財前','藤堂','一ノ瀬','神崎'];
 const MENTOR_NAMES = ['室田さん','鬼塚さん','南部さん','和泉さん','榊さん'];
 function pickName(){ return PARTNER_NAMES[(S.quarter + S.children) % PARTNER_NAMES.length]; }
-
-let selectedEndAge = 35;
-function renderLenSelect(){
-  const box = document.getElementById('len-select');
-  if(!box) return;
-  const opts = [{a:30,l:'短編'},{a:35,l:'標準'},{a:40,l:'長編'}];
-  box.innerHTML = '';
-  opts.forEach(function(o){
-    const b = document.createElement('span');
-    b.className = 'len-btn' + (selectedEndAge===o.a ? ' on' : '');
-    b.textContent = o.l + '('+o.a+'歳)';
-    b.onclick = function(){ selectedEndAge = o.a; document.getElementById('goal-age-text').textContent = o.a+'歳'; renderLenSelect(); };
-    box.appendChild(b);
-  });
-}
 
 function goIntro(){
   document.getElementById('screen-title').classList.add('hidden');
@@ -1488,7 +1604,6 @@ function goIntro(){
 }
 
 function startGame(greetIdx){
-  CONFIG.endAge = selectedEndAge;   // 選んだ長さを反映
   S = newState();
   const g = GREETINGS[greetIdx];
   const m = g.mod;
@@ -1511,16 +1626,20 @@ function startGame(greetIdx){
 function quarterPreview(hours, weekendDays){
   const wp = S.workPower, proj = S.project, months = 3;
   const sk = S.skills || {speed:0,tough:0,nego:0,mgmt:0};
-  const workDays = (20 + weekendDays) * months;
+  const weekdayDays = 20 * months;          // 平日(60日)
+  const weDays = weekendDays * months;       // 休日勤務(0〜12日)
+  const workDays = weekdayDays + weDays;
   const restDays = (10 - weekendDays) * months;
   const manHours = workDays * hours;
+  // 労働効率の逓減: 8h超は1時間あたりの成果が落ちる(8h迄=1.0/9〜12h=0.6/13h〜=0.35)
+  const effHours = Math.min(hours,8) + Math.max(0,Math.min(hours,12)-8)*0.6 + Math.max(0,hours-12)*0.35;
   // スキル: 速度=工数効率↑, 管理=部下が肩代わりする工数
-  const kousu = workDays * hours * wp * (1 + sk.speed * CONFIG.skill.speed)
+  const kousu = workDays * effHours * wp * (1 + sk.speed * CONFIG.skill.speed)
               + sk.mgmt * CONFIG.skill.mgmtKousu * workDays * wp;
   const intensity = Math.pow(hours / 8, 1.5);
-  // スキル: タフネス=体力消耗↓
-  const staDrain = workDays * intensity * proj.staminaWeight * CONFIG.baseDrain * (1 - sk.tough * CONFIG.skill.tough);
-  let menDrain = workDays * intensity * proj.mentalWeight  * CONFIG.baseDrain;
+  // 休日勤務は体力消耗が軽く(weekendStaFactor)、メンタル消耗が重い(weekendMenFactor)
+  const staDrain = (weekdayDays + weDays * CONFIG.weekendStaFactor) * intensity * proj.staminaWeight * CONFIG.baseDrain * (1 - sk.tough * CONFIG.skill.tough);
+  let menDrain = (weekdayDays + weDays * CONFIG.weekendMenFactor) * intensity * proj.mentalWeight  * CONFIG.baseDrain;
   // 《天才》: 仕事力が高いのに簡単な案件だと退屈で心がすり減る
   let boredom = 0;
   if(S.abilities.genius && wp >= CONFIG.geniusWpThreshold && proj.reqMult <= 1.0){
@@ -1528,6 +1647,10 @@ function quarterPreview(hours, weekendDays){
     menDrain += boredom;
   }
   if(S.abilities.zen) menDrain *= 0.8;                 // 《禅の境地》: メンタル消耗が減る
+  // 長時間労働教: 規定時間未満で働くと強い不安でメンタルが大きく減る
+  if(S.flags && S.flags.cult && hours < CONFIG.cultThreshold){
+    menDrain += (CONFIG.cultThreshold - hours) * workDays * CONFIG.cultPenalty;
+  }
   let recovery = restDays * CONFIG.restRate * (S.abilities.ironbody ? 1.25 : 1); // 《鉄の肉体》: 回復増
   let menSupport = 0;
   let menRecMult = 1;
@@ -1537,7 +1660,9 @@ function quarterPreview(hours, weekendDays){
   menSupport += S.children * CONFIG.childBonus;
   // スキル交渉=報酬↑, 景気=報酬倍率
   let pay = proj.pay * (S.president ? 1.3 : 1.0) * (1 + sk.nego * CONFIG.skill.nego) * econMult();
-  const wage = Math.round(manHours * pay * (0.6 + wp * 0.02) * CONFIG.moneyRate);
+  // 休日勤務分は割増手当(weekendPayMult)
+  const payHours = weekdayDays * hours + weDays * hours * CONFIG.weekendPayMult;
+  const wage = Math.round(payHours * pay * (0.6 + wp * 0.02) * CONFIG.moneyRate);
   const bonus = Math.round(S.companyCash * CONFIG.profitShareRate);   // 業績連動ボーナス
   return {
     kousu: Math.round(kousu),
@@ -1569,6 +1694,11 @@ function updatePreview(){
   html += '<span class="chip">' + incomeText + '</span>';
   const exp = quarterlyExpense();
   if(exp > 0) html += '<span class="chip" style="border-color:var(--danger);color:var(--danger)">毎期の出費：約' + man(exp) + '</span>';
+  if(wknd > 0){
+    html += '<span class="chip" style="border-color:var(--money);color:var(--money)">休日手当 1.5倍</span>';
+    if(S.relationship !== 'single' && wknd >= CONFIG.weekendStrainThreshold)
+      html += '<span class="chip" style="border-color:var(--danger);color:var(--danger)">⚠ '+(S.relationship==='married'?'家庭':'恋人')+'との関係が悪化</span>';
+  }
   const lastChance = (proj.quartersElapsed + 1) >= proj.length;
   if(lastChance) html += '<span class="chip" style="border-color:var(--danger);color:var(--danger)">⚠ 今期が納期。未達なら失敗</span>';
   document.getElementById('preview').innerHTML = html;
@@ -1636,6 +1766,7 @@ const SKILL_DEFS = [
   { key:'nego',  name:'🤝 交渉',     desc:'報酬↑' },
   { key:'mgmt',  name:'👔 マネジメント', desc:'部下が工数を肩代わり' },
 ];
+function allSkillsMaxed(){ return SKILL_DEFS.every(function(s){ return S.skills[s.key] >= CONFIG.skillCap; }); }
 function goToSkill(){ showPhase('phase-skill'); renderSkillPhase(); }
 function renderSkillPhase(){
   document.getElementById('sp-count').textContent = S.skillPoints;
@@ -1643,10 +1774,10 @@ function renderSkillPhase(){
   box.innerHTML = '';
   SKILL_DEFS.forEach(function(s){
     const lv = S.skills[s.key];
-    const maxed = lv >= CONFIG.skillCap;
+    if(lv >= CONFIG.skillCap) return;   // MAX到達は表示しない
     const b = document.createElement('button');
-    b.innerHTML = s.name + ' <b>Lv'+lv+'</b>' + (maxed?'（MAX）':'') + '<span class="eff" style="display:block;font-size:.78rem;color:var(--sub);">'+s.desc+'</span>';
-    b.disabled = (S.skillPoints <= 0) || maxed;
+    b.innerHTML = s.name + ' <b>Lv'+lv+'</b>' + '<span class="eff" style="display:block;font-size:.78rem;color:var(--sub);">'+s.desc+'</span>';
+    b.disabled = (S.skillPoints <= 0);
     b.onclick = function(){ spendSkill(s.key); };
     box.appendChild(b);
   });
@@ -1655,7 +1786,8 @@ function spendSkill(key){
   if(S.skillPoints <= 0 || S.skills[key] >= CONFIG.skillCap) return;
   S.skills[key]++; S.skillPoints--;
   sfx('levelup');
-  renderSkillPhase(); render();
+  if(S.skillPoints <= 0 || allSkillsMaxed()) goToSelect();   // 使い切り/全MAXなら次へ
+  else { renderSkillPhase(); render(); }
 }
 
 /* ===================== WORK ===================== */
@@ -1674,7 +1806,7 @@ function work(){
   proj.earned += p.money;
   S.money += p.money;
   const expense = quarterlyExpense();
-  if(expense > 0) S.money = Math.max(0, S.money - expense);
+  if(expense > 0){ S.money -= expense; checkDebt(); }
   // 資産運用の損益(景気連動)
   let invGain = 0;
   if(S.investments > 0){
@@ -1728,9 +1860,28 @@ function work(){
     if(S.over) return;
   }
 
+  // 休日勤務で私生活を犠牲にすると関係が悪化(strain増)
+  if(S.relationship !== 'single' && wknd >= CONFIG.weekendStrainThreshold){
+    S.relStrain += 1;
+    log('🏖️ 休日も働き詰めで、'+(S.relationship==='married'?'家庭':'恋人')+'との時間が削られている…', 'bad');
+  }
   // 関係が安定していれば相手の不満(strain)は和らぐ
-  if(S.relationship !== 'single' && S.men >= CONFIG.crisisMental + 18 && S.relStrain > 0){
+  else if(S.relationship !== 'single' && S.men >= CONFIG.crisisMental + 18 && S.relStrain > 0){
     S.relStrain -= 1;
+  }
+
+  // 妊娠の進行 → 出産
+  S.justBorn = false;
+  if(S.pregnant > 0 && S.relationship !== 'single'){
+    S.pregnant -= 1;
+    if(S.pregnant === 0){
+      S.children += 1;
+      S.justBorn = true;
+      chron('👶 第'+S.children+'子が誕生');
+      log('👶 第'+S.children+'子が生まれた！', 'ok'); sfx('birthday');
+    } else {
+      log('🤰 おなかの子はすくすく育っている（出産まであと'+S.pregnant+'期）');
+    }
   }
 
   S.pendingEvent = pickEvent();
@@ -1856,6 +2007,8 @@ function resolveFail(){
 
 /* ===================== EVENTS ===================== */
 function pickEvent(){
+  // 出産直後は育休イベントを最優先
+  if(S.justBorn) return birthEvent();
   // 恋愛の危機: メンタル低下で関係悪化。選択で回避できるが strain が限界に達すると別れ
   if(S.relationship === 'girlfriend' || S.relationship === 'married'){
     if(S.men < CONFIG.crisisMental){
@@ -1863,15 +2016,39 @@ function pickEvent(){
       return crisisEvent();
     }
   }
-  // 条件を満たす未使用イベントのうち、今の状態に最も合う(条件の多い=specの高い)ものを選ぶ
-  let best=null, bestSpec=-1;
+  // 条件を満たす未使用イベントを集める
+  const elig = [];
   for(let idx=0; idx<POOL.length; idx++){
     const e = POOL[idx];
     if(S.usedEvents.has(e.id)) continue;
     if(!e.cond(S)) continue;
-    if(e.spec > bestSpec){ best = e; bestSpec = e.spec; }
+    elig.push(e);
   }
-  return best || FILLERS[S.quarter % FILLERS.length];
+  if(!elig.length) return FILLERS[S.quarter % FILLERS.length];
+  // 重要な分岐アーク(恋愛・家族・能力・入信)は条件が合えば必ず発火
+  const important = elig.filter(function(e){ return e.spec >= 200; });
+  if(important.length){
+    const mx = important.reduce(function(m,e){ return e.spec>m?e.spec:m; }, 0);
+    const top = important.filter(function(e){ return e.spec === mx; });
+    return top[varietySeed() % top.length];
+  }
+  // それ以外は「手書きの作り込み」と「生成イベント」をほぼ半々で混ぜる。
+  // 同じ選択なら同じ／違う生き方なら違うイベントが出る(乱数は不使用)。
+  const curated = elig.filter(function(e){ return !e.id.startsWith('g'); });
+  const generated = elig.filter(function(e){ return e.id.startsWith('g'); });
+  const useCurated = curated.length > 0 && (generated.length === 0 || varietySeed() % 2 === 0);
+  const pool = useCurated ? curated : generated;
+  // プール内では状態に合う(specの高い)もの＋その近傍から、多様化インデックスで選ぶ
+  const mx = pool.reduce(function(m,e){ return e.spec>m?e.spec:m; }, -1);
+  const top = pool.filter(function(e){ return e.spec >= mx - 1; });
+  return top[(varietySeed()>>1) % top.length];
+}
+// プレイスタイル(選択の積み重ね)に依存する決定論的な多様化シード
+function varietySeed(){
+  let f = 0; for(const k in S.flags) if(S.flags[k]) f++;
+  const v = S.quarter*7 + f*13 + S.workPower + S.children*5 + S.projIndex*3
+          + Math.floor((S.money||0)/300000) + (S.relationship==='married'?2:S.relationship==='girlfriend'?1:0);
+  return Math.abs(v) % 100000;
 }
 
 function crisisEvent(){
@@ -1900,6 +2077,20 @@ function breakupEvent(){
       {label:'仕事に没頭して紛らわす', eff:{rel:'breakup',dWp:3,dMen:-10}, log:who+'と別れ、仕事に逃げた。💔'},
       {label:'これを教訓に生き方を見直す', flags:[], eff:{rel:'breakup',dMaxMen:6,dMen:-3}, log:who+'とは別れたが、教訓を得た。💔'},
       {label:'しばらく一人を楽しむと決める', eff:{rel:'breakup',dMen:2}, log:who+'と別れ、自由な時間を取り戻した。💔'},
+    ],
+  };
+}
+
+// 出産時の育休の選択(最大1年)。取らないとストレスが溜まり離婚に近づく
+function birthEvent(){
+  return {
+    id:'_birth', title: '👶 第'+S.children+'子の誕生',
+    text: '待望の赤ちゃんが生まれた。育児休暇をどうする？（取らないと家庭にストレスが溜まる）',
+    choices:[
+      {label:'1年(4期)しっかり育休を取る', resetStrain:true, eff:{dMaxMen:12,dMen:25,money:-800000}, log:'1年の育休で家族と濃密な時間を過ごした。収入は減ったが絆は深まった。'},
+      {label:'半年(2期)の育休を取る', resetStrain:true, eff:{dMaxMen:6,dMen:15,money:-400000}, log:'半年の育休を取り、家族を支えた。'},
+      {label:'3ヶ月(1期)だけ取る', resetStrain:true, eff:{dMen:8,money:-150000}, log:'短い育休を取り、すぐ復帰した。'},
+      {label:'育休は取らず仕事に戻る', strain:2, eff:{dWp:1,dMen:-12}, log:'育休を取らず働き続けた。ワンオペ育児で家庭にストレスが溜まっていく…。'},
     ],
   };
 }
@@ -1943,15 +2134,16 @@ function chooseEvent(i){
   if(eff.dWp)     S.workPower = Math.max(1, S.workPower + eff.dWp);
   if(eff.dSta)    S.sta += eff.dSta;
   if(eff.dMen)    S.men += eff.dMen;
-  if(eff.money)   S.money = Math.max(0, S.money + eff.money);
+  if(eff.money)   S.money += eff.money;
   if(eff.rel === 'girlfriend'){ S.relationship = 'girlfriend'; S.partnerName = pickName(); chron('💗 '+S.partnerName+'さんと交際開始'); }
   if(eff.rel === 'marry'){ S.relationship = 'married'; chron('💍 '+(S.partnerName||'パートナー')+'さんと結婚'); }
-  if(eff.rel === 'child'){ S.relationship = 'married'; S.children += 1; chron('👶 第'+S.children+'子が誕生'); }
-  if(eff.rel === 'breakup'){ chron('💔 '+(S.partnerName||'パートナー')+'さんと別れた'); S.relationship = 'single'; S.relStrain = 0; S.partnerName = ''; }
+  if(eff.rel === 'child'){ S.relationship = 'married'; if(S.pregnant <= 0){ S.pregnant = CONFIG.pregnancyQuarters; chron('🤰 子を授かった（妊娠）'); } }
+  if(eff.rel === 'breakup'){ chron('💔 '+(S.partnerName||'パートナー')+'さんと別れた'); S.relationship = 'single'; S.relStrain = 0; S.partnerName = ''; S.pregnant = 0; }
   if(c.flags) c.flags.forEach(function(f){
     S.flags[f] = true;
     if(f==='rival' && !S.rivalName){ S.rivalName = RIVAL_NAMES[S.quarter % RIVAL_NAMES.length]; chron('🔥 好敵手「'+S.rivalName+'」と出会う'); }
     if(f==='mentor' && !S.mentorName){ S.mentorName = MENTOR_NAMES[S.quarter % MENTOR_NAMES.length]; chron('🎓 師匠「'+S.mentorName+'」に弟子入り'); }
+    if(f==='cult'){ chron('⛩️ 「長時間労働教」に入信してしまった'); log('⛩️ あなたは「長時間労働教」に入信した。短い労働では強い不安に苛まれる体になった…', 'bad'); sfx('death'); }
   });
   // 恋愛危機の strain 処理
   if(c.resetStrain) S.relStrain = 0;
@@ -1965,6 +2157,7 @@ function chooseEvent(i){
 
   S.sta = clamp(S.sta, 0, S.maxSta);
   S.men = clamp(S.men, 0, S.maxMen);
+  if(eff.money && eff.money < 0) checkDebt();   // 出費で借金→家族が去る
   if(!ev.id.startsWith('_')) S.usedEvents.add(ev.id);
   log('【'+ev.title+'】'+c.log, ev.rare||c.grant ? 'rare' : 'ev');
 
@@ -1993,7 +2186,7 @@ function showResult(ev, c, eff, before, granted){
   if(eff.money)   lines.push({txt:(eff.money>0?'収入 +':'出費 ')+man(Math.abs(eff.money)), pos:eff.money>0});
   if(eff.rel==='girlfriend') lines.push({txt:'恋人ができた 💗', pos:true});
   if(eff.rel==='marry')      lines.push({txt:'結婚した 💍', pos:true});
-  if(eff.rel==='child')      lines.push({txt:'子供が生まれた 👶', pos:true});
+  if(eff.rel==='child')      lines.push({txt:'子を授かった 🤰（しばらくして生まれる）', pos:true});
   if(eff.rel==='breakup')    lines.push({txt:'パートナーと別れた 💔', pos:false});
   const abilityName = { phoenix:'🔥 不死鳥', genius:'🧠 天才', buyout:'🏛️ 買収の野心',
     zen:'🧘 禅の境地', ironbody:'💪 鉄の肉体', charisma:'🤝 人望' };
@@ -2019,7 +2212,7 @@ function hideAllPhases(){
     .forEach(id=>document.getElementById(id).classList.add('hidden'));
 }
 function showPhase(id){ hideAllPhases(); document.getElementById(id).classList.remove('hidden'); }
-function showPlay(){ showPhase('phase-play'); updatePreview(); renderCare(); renderInvest(); }
+function showPlay(){ showPhase('phase-play'); updatePreview(); renderInvest(); }
 
 function showComplete(){
   const r = S.projectEnded;
@@ -2050,7 +2243,7 @@ function showComplete(){
   }
   // スキルポイントがあれば習得画面へ
   const btn = document.getElementById('comp-btn');
-  if(S.skillPoints > 0){ btn.textContent = '🎓 スキルを習得 ▶'; btn.setAttribute('onclick','goToSkill()'); }
+  if(S.skillPoints > 0 && !allSkillsMaxed()){ btn.textContent = '🎓 スキルを習得 ▶'; btn.setAttribute('onclick','goToSkill()'); }
   else { btn.textContent = '次のプロジェクトを選ぶ ▶'; btn.setAttribute('onclick','goToSelect()'); }
 }
 
@@ -2138,7 +2331,9 @@ function render(){
   renderGauge('men-seg','men-lv', S.men, S.maxMen, ['限界寸前…','すり減り気味','普通','良好','元気']);
 
   document.getElementById('wp').textContent = S.workPower;
-  document.getElementById('money').textContent = man(S.money);
+  const moneyEl = document.getElementById('money');
+  moneyEl.textContent = S.money < 0 ? '借金 ' + man(-S.money) : man(S.money);
+  moneyEl.style.color = S.money < 0 ? 'var(--danger)' : 'var(--money)';
   const cashEl = document.getElementById('cash');
   cashEl.textContent = man(S.companyCash);
   cashEl.style.color = S.companyCash < CONFIG.contractBase ? 'var(--danger)' : 'var(--cash)';
@@ -2158,6 +2353,7 @@ function render(){
   let relTxt = relMap[S.relationship];
   if(S.relationship!=='single' && S.partnerName) relTxt = (S.relationship==='married'?'既婚 💍':'恋人 💗')+'：'+S.partnerName+'さん';
   if(S.children>0) relTxt += '・子供'+S.children+'人 👶';
+  if(S.pregnant>0) relTxt += '・🤰妊娠中(あと'+S.pregnant+'期)';
   if(S.president) relTxt = '👔社長 / ' + relTxt;
   document.getElementById('relpill').innerHTML = relTxt;
 
@@ -2170,6 +2366,7 @@ function render(){
   if(S.abilities.zen)      abs.push('<span class="tag ability">🧘 禅の境地</span>');
   if(S.abilities.ironbody) abs.push('<span class="tag ability">💪 鉄の肉体</span>');
   if(S.abilities.charisma) abs.push('<span class="tag ability">🤝 人望</span>');
+  if(S.flags && S.flags.cult) abs.push('<span class="tag ability" style="color:var(--danger);border-color:var(--danger)">⛩️ 長時間労働教</span>');
   abEl.innerHTML = abs.join(' ');
 
   const warn = document.getElementById('rel-warn');
@@ -2196,7 +2393,7 @@ function render(){
   document.getElementById('proj-deadline').textContent =
     '納期まで残り '+remain+'期'+(remain<=1?'（今期で必要工数に届かないと失敗！）':'');
 
-  if(!document.getElementById('phase-play').classList.contains('hidden')){ updatePreview(); renderCare(); renderInvest(); }
+  if(!document.getElementById('phase-play').classList.contains('hidden')){ updatePreview(); renderInvest(); }
 }
 
 /* ===================== HELPERS ===================== */
@@ -2317,7 +2514,6 @@ function showLastResult(){
       el.classList.remove('hidden');
     }
   }catch(e){}
-  renderLenSelect();
 })();
 </script>
 </body>
