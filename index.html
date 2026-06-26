@@ -1210,13 +1210,111 @@ const EVENTS = [
       {label:'気にせず普段通り過ごす', eff:{dMen:3}, log:'迷信に振り回されなかった。'},
       {label:'なんとなく不調が続く', eff:{dSta:-4,dMen:-3}, log:'厄年を意識して気が滅入った。'},
     ]},
-  { id:'crossroad', cond:(s)=>s.years>=15, title:'人生の岐路',
-    text:'40歳が近づき、これまでの人生とこれからを、深く見つめ直す。',
+  { id:'crossroad', cond:(s)=>s.years>=11, title:'人生の岐路',
+    text:'引退も視野に入り、これまでの人生とこれからを、深く見つめ直す。',
     choices:[
       {label:'これまでの自分を誇る', eff:{dMaxMen:12,dMen:10}, log:'歩んできた道に自信を持てた。'},
       {label:'最後まで走り抜く決意', eff:{dWp:5,dMen:-2}, log:'ゴールへ向けて気を引き締めた。'},
       {label:'大切なものを再確認する', eff:{dMen:10,dMaxMen:6}, log:'本当に大事なものが見えた。'},
       {label:'後悔と向き合う', eff:{dMen:-4,dMaxMen:8}, log:'痛みも含めて受け入れた。'},
+    ]},
+
+  /* ===== 追加の分岐チェーン(選択でフラグが立ち、後の展開が変わる) ===== */
+  { id:'side_hustle', cond:(s)=>s.years>=2 && !s.flags.entrepreneur, title:'副業の芽',
+    text:'空き時間で始めた小さな副業が、少しずつ形になってきた。',
+    choices:[
+      {label:'事業として本気で育てる', flags:['entrepreneur'], eff:{dWp:3,dSta:-6,money:200000}, log:'起業家への第一歩を踏み出した。'},
+      {label:'お小遣い稼ぎに留める', eff:{money:150000,dSta:-3}, log:'無理なく続けた。'},
+      {label:'本業に集中するため畳む', eff:{dMen:3}, log:'きっぱり手を引いた。'},
+      {label:'仲間を巻き込んで拡大', flags:['entrepreneur','networker'], eff:{dWp:2,dMen:-3}, log:'人を集めて動き出した。'},
+    ]},
+  { id:'side_hustle_grow', cond:(s)=>s.flags.entrepreneur && s.years>=5, title:'副業の岐路',
+    text:'育ててきた副業が、本業を脅かすほど大きくなってきた。',
+    choices:[
+      {label:'独立して勝負に出る', eff:{dWp:6,dSta:-10,dMen:-8,money:1500000}, log:'退路を断ち、事業に賭けた。'},
+      {label:'本業と両立し続ける', eff:{dWp:3,dSta:-6,money:600000}, log:'二足の草鞋を貫いた。'},
+      {label:'事業を売却して資金化', eff:{money:2500000,dMen:4}, log:'高値で売り抜けた。'},
+      {label:'軌道に乗らず撤退', eff:{money:-300000,dMen:-6}, log:'夢は潰えた…。'},
+    ]},
+  { id:'crypto', cond:(s)=>s.money>=4000000 && s.years>=3 && !s.flags.degen, title:'怪しい投資話',
+    text:'急騰中だという暗号資産。今乗らなければ乗り遅れる、と友人は言う。',
+    choices:[
+      {label:'大金を突っ込む', flags:['degen'], eff:{money:-2000000,dMen:-4}, log:'なけなしの大金を投じた…。'},
+      {label:'少額で様子を見る', flags:['degen'], eff:{money:-300000}, log:'お試しで参戦した。'},
+      {label:'勉強だけして見送る', flags:['studious'], eff:{dWp:1,dMen:2}, log:'冷静に分析して降りた。'},
+      {label:'きっぱり断る', eff:{dMaxMen:4}, log:'うまい話には乗らなかった。'},
+    ]},
+  { id:'crypto_result', cond:(s)=>s.flags.degen, title:'相場の結末',
+    text:'あの投資の結果が出た。さて——',
+    choices:[
+      {label:'利益を確定して引き上げる', eff:{money:1800000,dMen:8}, log:'うまく稼いで撤退した。'},
+      {label:'欲を出して追加投資', flags:[], eff:{money:-1500000,dMen:-10}, log:'高値掴みで大損した…。'},
+      {label:'塩漬けにして祈る', eff:{dMen:-4}, log:'含み損を抱えたまま放置した。'},
+      {label:'もう二度とやらないと誓う', eff:{dMaxMen:6}, log:'良い教訓になった。'},
+    ]},
+  { id:'hobby', cond:(s)=>s.years>=2 && !s.flags.hobbyist, title:'夢中になれる趣味',
+    text:'ふとしたきっかけで、心から夢中になれる趣味に出会った。',
+    choices:[
+      {label:'のめり込んで生きがいにする', flags:['hobbyist'], eff:{dMaxMen:10,dMen:8,money:-100000}, log:'人生に彩りが生まれた。'},
+      {label:'息抜き程度に楽しむ', eff:{dMen:6}, log:'良いリフレッシュになった。'},
+      {label:'仲間を見つけて交流', flags:['hobbyist','hasPeers'], eff:{dMen:7,dSta:-2}, log:'趣味仲間ができた。'},
+      {label:'時間がなく諦める', eff:{dMen:-3,dWp:1}, log:'仕事を優先した。'},
+    ]},
+  { id:'hobby_fame', cond:(s)=>s.flags.hobbyist && s.years>=5, title:'趣味が実を結ぶ',
+    text:'長く続けた趣味が、思わぬ形で注目を集め始めた。',
+    choices:[
+      {label:'副収入の柱にする', eff:{money:600000,dMen:6}, log:'好きが収入に変わった。'},
+      {label:'発信して仲間を増やす', flags:['famous'], eff:{dMaxMen:8,dMen:6}, log:'コミュニティの中心になった。'},
+      {label:'あくまで純粋に楽しむ', eff:{dMaxMen:10}, log:'初心を忘れず続けた。'},
+      {label:'燃え尽きて熱が冷める', eff:{dMen:-4}, log:'情熱が薄れてしまった。'},
+    ]},
+  { id:'volunteer', cond:(s)=>s.years>=3 && !s.flags.altruist, title:'ボランティアの誘い',
+    text:'地域の支援活動に誘われた。',
+    choices:[
+      {label:'積極的に参加する', flags:['altruist'], eff:{dMaxMen:10,dMen:8,dSta:-4}, log:'人の役に立つ喜びを知った。'},
+      {label:'できる範囲で手伝う', eff:{dMen:6}, log:'無理なく貢献した。'},
+      {label:'寄付で支える', eff:{money:-100000,dMen:5}, log:'お金で支援した。'},
+      {label:'今は余裕がなく断る', eff:{dMen:-2}, log:'自分のことで精一杯だった。'},
+    ]},
+  { id:'altruist_payoff', cond:(s)=>s.flags.altruist && s.years>=6, title:'善意の輪',
+    text:'続けてきた支援活動が、地域で大きな信頼を集めている。',
+    choices:[
+      {label:'活動を広げ、人望を得る', flags:['networker'], eff:{dMaxMen:12,dMen:8}, log:'多くの人に慕われる存在になった。'},
+      {label:'仕事にも良い縁が生まれる', eff:{dWp:3,money:200000}, log:'思わぬ仕事の縁につながった。'},
+      {label:'静かに続ける', eff:{dMaxMen:8}, log:'見返りを求めず続けた。'},
+      {label:'燃え尽きて少し離れる', eff:{dMen:-4,dSta:5}, log:'一度距離を置いた。'},
+    ]},
+  { id:'job_hop', cond:(s)=>s.years>=4 && !s.flags.jobHopper, title:'転職という選択肢',
+    text:'今より好条件のオファー。キャリアの転機かもしれない。',
+    choices:[
+      {label:'思い切って転職する', flags:['jobHopper'], eff:{dMaxMen:8,money:400000,dMen:5}, log:'環境を変えて飛躍を狙う。'},
+      {label:'今の会社で交渉する', eff:{money:300000,dWp:1}, log:'残って待遇を改善した。'},
+      {label:'スキルを磨いてから考える', flags:['studious'], eff:{dWp:4,dSta:-4}, log:'市場価値を高めることにした。'},
+      {label:'動かず安定を選ぶ', eff:{dMen:3}, log:'今の場所を大事にした。'},
+    ]},
+  { id:'job_hopper_reputation', cond:(s)=>s.flags.jobHopper && s.years>=7, title:'渡り鳥のキャリア',
+    text:'何度か職場を移り、あなたは「どこでも通用する人材」と見なされ始めた。',
+    choices:[
+      {label:'引く手あまたを活かし好条件を掴む', eff:{money:800000,dWp:3}, log:'交渉力を武器に好待遇を得た。'},
+      {label:'腰を据えて一社に貢献する', eff:{dMaxMen:8,dMen:5}, log:'ようやく定住先を見つけた。'},
+      {label:'フリーランスとして独立', eff:{dWp:4,dSta:-6,money:500000}, log:'組織を離れ自由に働き始めた。'},
+      {label:'根無し草の不安を感じる', eff:{dMen:-5,dMaxMen:4}, log:'居場所のなさに揺れた。'},
+    ]},
+  { id:'health_scare', cond:(s)=>s.years>=4 && !s.flags.healthAware, title:'体からの黄色信号',
+    text:'検査で「このままだと数年後が危ない」と医師に警告された。',
+    choices:[
+      {label:'生活を一新し健康第一に', flags:['healthAware','gym'], eff:{dMaxSta:14,dSta:5,money:-150000}, log:'人生観が変わり、体を最優先にした。'},
+      {label:'できることから少しずつ', flags:['healthAware'], eff:{dMaxSta:6,dSta:3}, log:'無理なく改善を始めた。'},
+      {label:'怖くて直視できない', eff:{dMen:-6}, log:'不安を抱えたまま過ごした。'},
+      {label:'気にせず働き続ける', flags:['reckless'], eff:{dWp:2,dMaxSta:-6}, log:'警告を無視した…。'},
+    ]},
+  { id:'midlife', cond:(s)=>s.years>=9, title:'ふとした虚しさ',
+    text:'順調なはずなのに、ある夜ふいに、これでいいのかという思いがよぎる。',
+    choices:[
+      {label:'生き方を見つめ直す', eff:{dMaxMen:12,dMen:6}, log:'本当に大切なものを問い直した。'},
+      {label:'新しい挑戦で打開する', eff:{dWp:4,dSta:-5,dMen:3}, log:'停滞を破ろうと動いた。'},
+      {label:'家族や仲間に救いを求める', eff:{dMen:10}, log:'人とのつながりに癒やされた。'},
+      {label:'虚しさを仕事で埋める', flags:['workaholic'], eff:{dWp:3,dMen:-6}, log:'働くことで気を紛らわせた。'},
     ]},
 ];
 
@@ -1428,7 +1526,15 @@ function buildEvents(){
 }
 const GENERATED = buildEvents();
 // 選択プール: キュレーション(重要な分岐/レア能力)は最優先(spec=100)、生成イベントは条件の多さ順
-const POOL = EVENTS.map(function(e){ e.spec = 100; return e; }).concat(GENERATED);
+// 重要な分岐イベント(能力付与・恋愛/家族の進展・入信)は最優先(spec=200)。
+// それ以外の作り込みは生成イベントと同列(spec=2)で混ぜ、毎回いろんなイベントが出るようにする。
+const POOL = EVENTS.map(function(e){
+  const important = e.choices.some(function(c){
+    return c.grant || (c.eff && c.eff.rel) || (c.flags && c.flags.indexOf('cult') >= 0);
+  });
+  e.spec = important ? 200 : 2;
+  return e;
+}).concat(GENERATED);
 
 /* ===================== STATE ===================== */
 let S = null;
@@ -1910,15 +2016,39 @@ function pickEvent(){
       return crisisEvent();
     }
   }
-  // 条件を満たす未使用イベントのうち、今の状態に最も合う(条件の多い=specの高い)ものを選ぶ
-  let best=null, bestSpec=-1;
+  // 条件を満たす未使用イベントを集める
+  const elig = [];
   for(let idx=0; idx<POOL.length; idx++){
     const e = POOL[idx];
     if(S.usedEvents.has(e.id)) continue;
     if(!e.cond(S)) continue;
-    if(e.spec > bestSpec){ best = e; bestSpec = e.spec; }
+    elig.push(e);
   }
-  return best || FILLERS[S.quarter % FILLERS.length];
+  if(!elig.length) return FILLERS[S.quarter % FILLERS.length];
+  // 重要な分岐アーク(恋愛・家族・能力・入信)は条件が合えば必ず発火
+  const important = elig.filter(function(e){ return e.spec >= 200; });
+  if(important.length){
+    const mx = important.reduce(function(m,e){ return e.spec>m?e.spec:m; }, 0);
+    const top = important.filter(function(e){ return e.spec === mx; });
+    return top[varietySeed() % top.length];
+  }
+  // それ以外は「手書きの作り込み」と「生成イベント」をほぼ半々で混ぜる。
+  // 同じ選択なら同じ／違う生き方なら違うイベントが出る(乱数は不使用)。
+  const curated = elig.filter(function(e){ return !e.id.startsWith('g'); });
+  const generated = elig.filter(function(e){ return e.id.startsWith('g'); });
+  const useCurated = curated.length > 0 && (generated.length === 0 || varietySeed() % 2 === 0);
+  const pool = useCurated ? curated : generated;
+  // プール内では状態に合う(specの高い)もの＋その近傍から、多様化インデックスで選ぶ
+  const mx = pool.reduce(function(m,e){ return e.spec>m?e.spec:m; }, -1);
+  const top = pool.filter(function(e){ return e.spec >= mx - 1; });
+  return top[(varietySeed()>>1) % top.length];
+}
+// プレイスタイル(選択の積み重ね)に依存する決定論的な多様化シード
+function varietySeed(){
+  let f = 0; for(const k in S.flags) if(S.flags[k]) f++;
+  const v = S.quarter*7 + f*13 + S.workPower + S.children*5 + S.projIndex*3
+          + Math.floor((S.money||0)/300000) + (S.relationship==='married'?2:S.relationship==='girlfriend'?1:0);
+  return Math.abs(v) % 100000;
 }
 
 function crisisEvent(){
